@@ -75,6 +75,7 @@ Which documentation files need updating as part of this change.
 
 ## Guidance
 
+- **Prefer clarity and completeness over expediency.** Plans should be explicit enough that implementers do not need to infer critical behavior, interfaces, or constraints from context.
 - **Keep it short.** A page or two max. If it's longer, the scope is too big; split it.
 - **Don't prescribe file names or directory trees in detail.** Specify the structure and key moves, but let the implementer decide exact file names unless one was explicitly agreed on.
 - **Pin what was decided, skip what wasn't.** If something was discussed and a choice was made, capture it. If it wasn't discussed, don't invent a decision — leave it to the implementer.
