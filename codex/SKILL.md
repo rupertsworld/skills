@@ -1,99 +1,161 @@
 ---
 name: codex
 description: >
-  Consult the Codex CLI from within the current session via bladerun. Use when
-  a second opinion is wanted, when Codex is a better fit for the task (deep
-  reasoning, alternative architecture exploration, tricky bugs), or when
-  offloading a self-contained sub-problem without losing the current context.
-  Trigger on "ask codex", "consult codex", "what does codex think", "get codex
-  to look at this".
+  Delegate work to the Codex CLI from within the current session. Two modes:
+  (1) foreground fire-and-wait for small, self-contained asks; (2) background
+  long-running sessions for larger tasks that need check-ins, interrupts, and
+  follow-up prompts. Both use `codex exec` directly — no server, no daemon,
+  no wrappers. Trigger on "ask codex", "consult codex", "get codex to…",
+  "delegate this to codex", "have codex work on this".
 ---
 
 # Codex
 
-Fire-and-wait consultation of the Codex CLI via bladerun. Codex runs as a
-background process; the current session keeps working or waits, then reads
-the response when it completes. No daemon, no persistent server — each
-consult is a cold spawn that can optionally resume a prior Codex session by id.
+Use the Codex CLI as a sub-agent via its native `codex exec` non-interactive
+mode. Codex persists every session to disk, so resuming by id (or `--last`)
+continues the same conversation with no host process required.
 
-## When to use
+## Two modes
 
-- A second opinion on architecture, a plan, or a tricky bug before committing
-- Codex is known to be stronger at the specific task at hand (deep
-  step-by-step reasoning, math-heavy work, alternative framings)
-- Exploring an alternative approach in parallel without derailing the main
-  session's context
-- Self-contained sub-problems that can be stated in one prompt
+### Mode A — Foreground (small, self-contained)
 
-## When NOT to use
+Fire once, block until Codex replies, read the answer, move on. Use for:
 
-- Tasks the current session can handle directly — don't outsource reflexively
-- Long supervised runs that need iteration and feedback — use a dedicated
-  bladerun run instead
-- Anything requiring the main session's full working context — the consult
-  starts cold
+- Second opinions on a small decision
+- A specific code question Codex might answer better
+- A self-contained sub-task that can be stated in one prompt
 
-## How it works
+Run as a **regular (blocking) Bash call**. Write the final message to a file
+with `-o` so the output is clean and easy to read back:
 
-1. **Kick off the consult** with bladerun as a background Bash task
-   (`run_in_background: true`):
+```bash
+codex exec \
+  -s read-only \
+  --skip-git-repo-check \
+  -o /tmp/codex-out.md \
+  "Here is the problem: … Answer with a plan, not code."
+```
 
-   ```
-   bladerun consult codex -p "<prompt>"
-   ```
+Then read `/tmp/codex-out.md`. Without `-o`, Codex prints a mix of progress
+and the final message to stdout — readable but noisier.
 
-   To continue a previous thread, pass `--session <id>`.
+Pick the sandbox to match the task:
 
-2. **Capture the run id** from bladerun's output. Hold onto it if follow-ups
-   are likely.
+- `-s read-only` — analysis, review, advice (default choice)
+- `-s workspace-write` — Codex may edit files in the current workspace
+- `--full-auto` — shorthand for `-s workspace-write` with on-request approvals
+- Avoid `--dangerously-bypass-approvals-and-sandbox` unless the user explicitly asks
 
-3. **Keep working** on the main task. The background task will auto-notify
-   on completion — no polling needed.
+Pass `-C <dir>` to scope Codex to a specific working directory, and
+`--add-dir <dir>` for extra writable paths. Use `--skip-git-repo-check` when
+running outside a git repo.
 
-4. **Read the response** once notified, using `bladerun tail <id>` or the log
-   path bladerun prints.
+### Mode B — Background (long-running, iterative)
 
-5. **Integrate the answer** into the session's reasoning. Attribute explicitly
-   when surfacing conclusions to the user ("Codex suggests…").
+Kick off Codex on a larger task, let it work, check on it, feed it more
+prompts in the same session as needed. Use for:
 
-## Threads
+- Multi-file refactors or implementations Codex will tackle from a plan
+- Research tasks where Codex will explore and summarize
+- Anything where you want to be able to interrupt, ask clarifying questions,
+  or redirect mid-flight
 
-For multi-turn consultations, capture the session id from the first consult
-and reuse it with `--session <id>` on subsequent calls. Codex resumes from its
-native session store; bladerun just forwards the resume flag. No state lives
-in bladerun itself, so threads survive across Claude Code sessions — a thread
-id from yesterday can be resumed today.
+**Start the session (background):** run `codex exec` as a Bash task with
+`run_in_background: true`. Capture its task id — that's what Claude Code uses
+to monitor, poll output, and kill:
 
-Keep threads scoped: one consult session per topic. If a topic shifts, start
-a new thread rather than piling context onto an existing one.
+```bash
+codex exec \
+  -s workspace-write \
+  -C /path/to/workspace \
+  --json \
+  -o /tmp/codex-session-1-last.md \
+  "<kickoff prompt with plan, constraints, success criteria>"
+```
+
+`--json` makes Codex emit JSONL events to stdout, which surfaces a
+`session_meta` event at the start containing the session id (`payload.id`,
+a UUID). Grep the captured output for it and hold onto it for follow-ups.
+If only one Codex session is ever in flight at a time, `--last` is an
+acceptable substitute and no id capture is needed.
+
+**Check on it:** use `BashOutput`/`TaskOutput` against the background task
+id at any time. Completion arrives automatically as a system message on the
+next turn.
+
+**Interrupt / adjust / follow up (same session):** once the current turn has
+finished (or after killing the background task), run Codex again with
+`exec resume`:
+
+```bash
+# By captured session id (preferred when multiple sessions in flight)
+codex exec resume <SESSION_ID> \
+  -s workspace-write \
+  "Reconsider the approach — constraint X has changed. Here's what to do instead: …"
+
+# Or the most recent session
+codex exec resume --last "Keep going, but add tests for the parser."
+```
+
+Each `resume` is itself a fresh process that can again be run foreground or
+background depending on how long the follow-up will take. Session state
+lives on disk in `~/.codex/sessions/` — no daemon keeps it alive between
+turns.
+
+**Kill it:** if Codex goes off the rails, kill the background Bash task by
+id. The session file is still on disk, and the state at time of kill is
+resumable via `exec resume`.
+
+## Capturing the session id
+
+Two reliable ways, in order of simplicity:
+
+1. **`--last`** — for the common case of "continue the session you just
+   ran." No id needed. Only safe when a single Codex session is in flight.
+2. **`--json` + grep** — run Codex with `--json` and parse the first
+   `session_meta` line from stdout. The UUID is at `payload.id`. This is
+   the robust approach when multiple Codex sessions may coexist.
+
+The `~/.codex/sessions/YYYY/MM/DD/rollout-…-<uuid>.jsonl` path also embeds
+the id in the filename, as a last-resort fallback.
 
 ## Prompting Codex
 
-Codex has no shared context with the current session. Every consult is a cold
-start. Include in the prompt:
+Codex does **not** share the current session's context. Every call is cold
+unless it's a `resume`. For kickoffs, include:
 
-- The specific question or task, stated plainly
-- Only the context needed to answer — summarize, don't paste whole files
-- The desired answer shape (plan, diff, critique, pros/cons, code)
-- Any constraints (language, style, "don't write tests", etc.)
+- The specific task or question, stated plainly
+- The exact context needed — file paths (Codex can read them), constraints,
+  success criteria, what "done" looks like
+- The desired answer shape (plan, diff, critique, code, pros/cons)
+- Anything the current session has already tried and ruled out
 
-Frame prompts as standalone requests a stranger could answer.
+Do not paste whole files unless essential — Codex can read the filesystem.
+Point at paths and tell it what to look at.
 
-## Reporting back to the user
+For follow-up prompts in the same session, keep them tight and
+conversational — Codex already has the prior turns.
 
-When relaying Codex's response:
+## Context discipline
 
-- Attribute it clearly ("Codex suggests…", "Per Codex…")
-- Summarize — never dump the full transcript inline
+- Do not dump `BashOutput` or `/tmp/codex-*.md` contents into the current
+  session wholesale. Read selectively, summarize, cite.
+- When relaying Codex's conclusions to the user, attribute explicitly
+  ("Codex suggests…", "Per Codex…") and summarize — point at the output
+  file if the user wants the full text.
 - Note where Codex agrees or disagrees with the current session's prior
-  reasoning, and which view is being adopted and why
-- If the user wants the full response, point at the log path
+  reasoning, and which view is being adopted.
 
 ## Guidelines
 
-- One consult per discrete question. Don't bundle unrelated asks.
-- Prefer waiting for the consult rather than racing ahead if its answer
+- Pick the mode to match the task size, not the importance. Small = Mode A,
+  large/iterative = Mode B.
+- One Codex session per topic. Don't multiplex unrelated asks through a
+  single resumed session.
+- Prefer waiting for a foreground consult over racing ahead if its answer
   directly blocks the next step.
-- Treat Codex as a peer, not an oracle — evaluate its answer critically before
-  acting on it.
-- Don't chain consults without reading the prior response first.
+- Treat Codex as a peer, not an oracle — evaluate its answer critically
+  before acting on it.
+- Never chain resumes without reading the prior response first.
+- Default to the most restrictive sandbox (`read-only`) unless the task
+  clearly requires writes.
