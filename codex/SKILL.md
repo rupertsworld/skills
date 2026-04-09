@@ -86,10 +86,19 @@ as a system reminder — that's the wake-up. Do **not** call
 `TaskOutput`/`BashOutput` with `block:true` just to wait; that blocks the
 current turn and defeats backgrounding.
 
-Only peek at the running task (non-blocking, `block:false`) when you need
-intermediate state to make a **steering decision** — e.g. "is Codex going
-in the right direction, or should I redirect?" If the peek shows it's off
-course, kill the background task and resume with new instructions.
+**Do not peek for status updates.** The task's status until completion
+is, by definition, "still running." If the user asks "how's it going?"
+and no completion notification has arrived, answer from that knowledge
+alone — do **not** call `TaskOutput`/`BashOutput` to check. Peeks dump
+a wall of intermediate output into the conversation and make the flow
+feel blocking even when it isn't.
+
+Peek **only** when there is a concrete reason to make a **steering
+decision** — e.g. suspicion it's off course, need to verify it's past
+a specific milestone before proceeding, or the user has given new
+information that may invalidate the kickoff. Use `block:false` for
+those peeks. If the peek confirms a problem, kill the background task
+and resume with new instructions.
 
 **Interrupt / adjust / follow up (same session):** kill the background
 task, then re-invoke with `exec resume`. The session file on disk preserves
