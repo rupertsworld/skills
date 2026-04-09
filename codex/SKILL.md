@@ -12,8 +12,9 @@ description: >
 # Codex
 
 Use the Codex CLI as a sub-agent via its native `codex exec` non-interactive
-mode. Codex persists every session to disk, so resuming by id (or `--last`)
-continues the same conversation with no host process required.
+mode. Codex persists every session to disk (`~/.codex/sessions/…`), so
+resuming by id (or `--last`) continues the same conversation with no host
+process required.
 
 ## Two modes
 
@@ -26,14 +27,15 @@ Fire once, block until Codex replies, read the answer, move on. Use for:
 - A self-contained sub-task that can be stated in one prompt
 
 Run as a **regular (blocking) Bash call**. Write the final message to a file
-with `-o` so the output is clean and easy to read back:
+with `-o` so the output is clean:
 
 ```bash
 codex exec \
   -s read-only \
   --skip-git-repo-check \
+  -C <working-dir> \
   -o /tmp/codex-out.md \
-  "Here is the problem: … Answer with a plan, not code."
+  "Here is the problem: … Answer with a plan, not code." < /dev/null
 ```
 
 Then read `/tmp/codex-out.md`. Without `-o`, Codex prints a mix of progress
@@ -46,9 +48,8 @@ Pick the sandbox to match the task:
 - `--full-auto` — shorthand for `-s workspace-write` with on-request approvals
 - Avoid `--dangerously-bypass-approvals-and-sandbox` unless the user explicitly asks
 
-Pass `-C <dir>` to scope Codex to a specific working directory, and
-`--add-dir <dir>` for extra writable paths. Use `--skip-git-repo-check` when
-running outside a git repo.
+Always pass `-C <dir>` to pin Codex's working directory. If omitted, Codex
+inherits the parent process cwd — which may not be where you meant to work.
 
 ### Mode B — Background (long-running, iterative)
 
@@ -57,67 +58,106 @@ prompts in the same session as needed. Use for:
 
 - Multi-file refactors or implementations Codex will tackle from a plan
 - Research tasks where Codex will explore and summarize
-- Anything where you want to be able to interrupt, ask clarifying questions,
-  or redirect mid-flight
+- Anything where you want to interrupt, ask clarifying questions, or
+  redirect mid-flight
 
 **Start the session (background):** run `codex exec` as a Bash task with
-`run_in_background: true`. Capture its task id — that's what Claude Code uses
-to monitor, poll output, and kill:
+`run_in_background: true`. Capture the returned task id for monitoring
+and kill control:
 
 ```bash
 codex exec \
-  -s workspace-write \
-  -C /path/to/workspace \
+  --full-auto \
+  --skip-git-repo-check \
+  -C <working-dir> \
   --json \
-  -o /tmp/codex-session-1-last.md \
-  "<kickoff prompt with plan, constraints, success criteria>"
+  -o <working-dir>/last.md \
+  "<kickoff prompt with plan, constraints, success criteria>" < /dev/null
 ```
 
-`--json` makes Codex emit JSONL events to stdout, which surfaces a
-`session_meta` event at the start containing the session id (`payload.id`,
-a UUID). Grep the captured output for it and hold onto it for follow-ups.
-If only one Codex session is ever in flight at a time, `--last` is an
-acceptable substitute and no id capture is needed.
+`--json` emits JSONL events to stdout. The first relevant event is
+`{"type":"thread.started","thread_id":"<UUID>"}` — that UUID is the session
+id for `exec resume`. Capture it from the output stream.
 
-**Check on it:** use `BashOutput`/`TaskOutput` against the background task
-id at any time. Completion arrives automatically as a system message on the
-next turn.
+**The within-session loop is event-driven, not polled.** While the
+background task runs, do other useful work (or respond to the user). When
+the task completes, the host auto-injects a task-completion notification
+as a system reminder — that's the wake-up. Do **not** call
+`TaskOutput`/`BashOutput` with `block:true` just to wait; that blocks the
+current turn and defeats backgrounding.
 
-**Interrupt / adjust / follow up (same session):** once the current turn has
-finished (or after killing the background task), run Codex again with
-`exec resume`:
+Only peek at the running task (non-blocking, `block:false`) when you need
+intermediate state to make a **steering decision** — e.g. "is Codex going
+in the right direction, or should I redirect?" If the peek shows it's off
+course, kill the background task and resume with new instructions.
+
+**Interrupt / adjust / follow up (same session):** kill the background
+task, then re-invoke with `exec resume`. The session file on disk preserves
+all prior turns, so Codex picks up where it left off:
 
 ```bash
-# By captured session id (preferred when multiple sessions in flight)
+# By captured session id (preferred when multiple sessions may be in flight)
 codex exec resume <SESSION_ID> \
-  -s workspace-write \
-  "Reconsider the approach — constraint X has changed. Here's what to do instead: …"
+  --full-auto \
+  -C <working-dir> \
+  --json \
+  -o <working-dir>/last.md \
+  "Reconsider — constraint X has changed. Do Y instead." < /dev/null
 
 # Or the most recent session
-codex exec resume --last "Keep going, but add tests for the parser."
+codex exec resume --last \
+  -C <working-dir> \
+  "Keep going, but add tests for the parser." < /dev/null
 ```
 
-Each `resume` is itself a fresh process that can again be run foreground or
-background depending on how long the follow-up will take. Session state
-lives on disk in `~/.codex/sessions/` — no daemon keeps it alive between
-turns.
+Each `resume` is a fresh process, so **every flag must be re-passed**,
+including `-C`, `-s` / `--full-auto`, `--skip-git-repo-check`, `-o`, and
+`--json`. Nothing is inherited from the original `exec` except the
+conversation state on disk. Forgetting `-C` on resume is the most common
+footgun — Codex will silently run in the parent process cwd.
 
-**Kill it:** if Codex goes off the rails, kill the background Bash task by
-id. The session file is still on disk, and the state at time of kill is
-resumable via `exec resume`.
+**Kill it:** kill the background Bash task by id with the host's task
+stop mechanism. The session file is still on disk and remains resumable.
 
 ## Capturing the session id
 
-Two reliable ways, in order of simplicity:
+In order of simplicity:
 
-1. **`--last`** — for the common case of "continue the session you just
-   ran." No id needed. Only safe when a single Codex session is in flight.
-2. **`--json` + grep** — run Codex with `--json` and parse the first
-   `session_meta` line from stdout. The UUID is at `payload.id`. This is
-   the robust approach when multiple Codex sessions may coexist.
+1. **`--last`** — "continue the session you just ran." No id needed. Safe
+   only when a single Codex session is in flight at a time.
+2. **Plain stdout** — without `--json`, Codex prints a `session id: <UUID>`
+   line near the top of its output. A simple grep pulls it out. Good for
+   foreground calls.
+3. **`--json` + `thread.started`** — with `--json`, the first few JSONL
+   events include `{"type":"thread.started","thread_id":"<UUID>"}`. Most
+   robust across multiple concurrent sessions.
 
-The `~/.codex/sessions/YYYY/MM/DD/rollout-…-<uuid>.jsonl` path also embeds
-the id in the filename, as a last-resort fallback.
+The `~/.codex/sessions/YYYY/MM/DD/rollout-…-<uuid>.jsonl` filename also
+embeds the id as a last-resort fallback.
+
+## Gotchas (Claude Code host environment)
+
+These are specific to running Codex from within Claude Code's Bash tool:
+
+- **Close stdin with `< /dev/null`.** When the prompt is a CLI argument,
+  Codex still tries to read stdin to append as a `<stdin>` block. In
+  backgrounded Bash, stdin stays open forever and Codex hangs. Explicitly
+  redirect `< /dev/null` on every invocation, foreground or background.
+
+- **Claude Code's seatbelt sandbox breaks Codex.** Codex's underlying
+  `system-configuration` crate reads macOS SystemConfiguration framework,
+  which Claude Code's seatbelt blocks, causing a Rust panic on startup.
+  Launch Codex with the host's sandbox bypass flag (for Claude Code's Bash
+  tool: `dangerouslyDisableSandbox: true`). Codex's own `-s` sandbox is
+  unaffected and still enforces its sandbox policy inside Codex — set it
+  appropriately per task.
+
+- **`-C` does not persist across `exec resume`.** Re-pass it every time.
+
+- **Auto-notification on completion is the loop.** The host injects a
+  `<task-notification>` system message when the background Bash task
+  exits. No manual polling needed. Use intermediate `block:false` peeks
+  only for steering decisions, not for waiting.
 
 ## Prompting Codex
 
@@ -129,6 +169,8 @@ unless it's a `resume`. For kickoffs, include:
   success criteria, what "done" looks like
 - The desired answer shape (plan, diff, critique, code, pros/cons)
 - Anything the current session has already tried and ruled out
+- Any environment constraints that will bite Codex (e.g., "no network,
+  stdlib only") if they're known up front
 
 Do not paste whole files unless essential — Codex can read the filesystem.
 Point at paths and tell it what to look at.
@@ -138,24 +180,25 @@ conversational — Codex already has the prior turns.
 
 ## Context discipline
 
-- Do not dump `BashOutput` or `/tmp/codex-*.md` contents into the current
-  session wholesale. Read selectively, summarize, cite.
-- When relaying Codex's conclusions to the user, attribute explicitly
-  ("Codex suggests…", "Per Codex…") and summarize — point at the output
-  file if the user wants the full text.
+- Do not dump raw output files or `BashOutput` contents into the current
+  session wholesale. Read selectively, summarize, cite paths.
+- When relaying Codex's conclusions, attribute explicitly ("Codex suggests…",
+  "Per Codex…") and summarize. Point at the output file if the user wants
+  the full text.
 - Note where Codex agrees or disagrees with the current session's prior
   reasoning, and which view is being adopted.
 
 ## Guidelines
 
-- Pick the mode to match the task size, not the importance. Small = Mode A,
+- Pick the mode to match the task shape: small/self-contained = Mode A,
   large/iterative = Mode B.
 - One Codex session per topic. Don't multiplex unrelated asks through a
   single resumed session.
-- Prefer waiting for a foreground consult over racing ahead if its answer
-  directly blocks the next step.
-- Treat Codex as a peer, not an oracle — evaluate its answer critically
-  before acting on it.
+- Treat Codex as a peer, not an oracle — evaluate its answers critically
+  before acting.
 - Never chain resumes without reading the prior response first.
-- Default to the most restrictive sandbox (`read-only`) unless the task
+- Default to the most restrictive sandbox (`-s read-only`) unless the task
   clearly requires writes.
+- Cross-session supervision (checking on a Codex run while the main Claude
+  Code session is idle or closed) is **out of scope** for this skill. It
+  requires a scheduler like `CronCreate` or a `SessionStart` hook.
