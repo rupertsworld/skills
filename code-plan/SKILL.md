@@ -78,6 +78,16 @@ Not every section needs all three sub-parts. A small change might just need beha
 
 Invariants that apply across the whole change. Things the implementation must never violate. "Server is always the source of truth", "all operations go through X", "never do Y."
 
+### API / behavior changes (bottom, if any)
+
+If the plan modifies any existing API, event shape, storage format, CLI flag, return value, error type, or observable behavior, list each change here with:
+- **Before:** the current signature/shape/behavior (quoted from code)
+- **After:** the new signature/shape/behavior
+- **Affected callers:** every consumer touched by the change
+- **Migration / compatibility note:** breaking or not, and what downstream work is implied
+
+If there are no such changes, omit this section.
+
 ### Out of scope (bottom)
 
 What's explicitly excluded. Prevents scope creep and sets expectations.
