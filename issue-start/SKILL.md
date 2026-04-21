@@ -21,7 +21,13 @@ If the input is missing or ambiguous, ask the user which issue before proceeding
 - Otherwise, call `mcp__linear__list_issues` with the input as a query. If more than one plausibly matches, show the top few and ask the user which one.
 - Read the description, parent/sub-issues, labels, and the latest comments via `mcp__linear__list_comments`. Note the problem, the motivation, and any constraints or acceptance criteria already captured.
 
-### 2. Read the project's must-read docs
+### 2. Create a worktree for the issue
+
+- Invoke the `worktree` skill with the issue key lowercased (e.g. `TEL-123` → `tel-123`) as the name. This creates `.worktrees/<key>/` on a branch of the same name, or attaches if the branch already exists.
+- If the issue key can't be determined (e.g. the user searched by title and didn't confirm a key), ask before inventing a name.
+- Treat the worktree as the active working location for the rest of the session — read docs, run the planning dialogue, and write the plan there.
+
+### 3. Read the project's must-read docs
 
 - Look for `AGENTS.md` and `CLAUDE.md` in the repo root. These route to the docs that must be read before making changes.
 - Follow the links in those files — architecture, guidelines, and any area-specific docs that match the issue's topic.
