@@ -12,6 +12,7 @@ Skills are designed to be portable. They contain no personal configuration, hard
 | `code-init` | Codebase orientation — read docs, map structure, summarize architecture |
 | `code-plan` | Plan a code change via structured Q&A — clarify, approach, write plan |
 | `code-review` | Review code for plan adherence, design, and clean code |
+| `delegate` | Delegate a task to a background coding agent via acpx — second opinions, background work, parallel exploration |
 | `download-video` | Download a video to Desktop via yt-dlp |
 | `find-skills` | Search and install skills from the skills.sh ecosystem |
 | `go` | Quick launcher — jump to a file, URL, or bookmark by shortcut name |
