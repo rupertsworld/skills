@@ -24,6 +24,8 @@ Review code changes for plan adherence, good design, and clean code.
    - **Suggestion** — would improve the code but not strictly wrong. Design improvements, simplification, alternative approaches.
    - **Nit** — style, formatting, minor readability issues.
 
-5. **Before finalization**, if the reviewed work used an ephemeral plan file, ask the user whether the plan should be removed now before any merge, push, cleanup, or other finalization step. Do not remove the plan automatically.
+5. **After writing the review, offer to walk through it item by item.** Ask the user if they want to go through each finding one at a time, pausing after each so they can accept, reject, or modify your recommendation. For each item, give your recommended action (e.g. "fix as proposed", "leave as-is", "apply with this tweak") and wait for the user's call before moving on. This converts the review from a report into an interactive triage session.
+
+6. **Before finalization**, if the reviewed work used an ephemeral plan file, ask the user whether the plan should be removed now before any merge, push, cleanup, or other finalization step. Do not remove the plan automatically.
 
 Write the review as a natural write-up, not a checklist. Be specific — reference files, lines, and acceptance criteria.
