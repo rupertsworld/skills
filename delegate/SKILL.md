@@ -50,18 +50,26 @@ Ask the user:
 
 Generate a descriptive session name from the task (e.g., `refactor-auth`, `test-coverage`, `review-api`). Chain `sessions ensure` and the first `prompt` call with `&&` so they go out as a single `Bash` tool call — avoids a round-trip and the permission prompt that comes with it.
 
-For long (background) tasks, use `--no-wait`:
-
-```bash
-acpx <agent> sessions ensure --name <session-name> && \
-acpx --approve-reads <agent> -s <session-name> --no-wait "<prompt>"
-```
-
-For short (foreground) tasks, omit `--no-wait`:
+**Short** — omit `--no-wait`, result returns in this turn:
 
 ```bash
 acpx <agent> sessions ensure --name <session-name> && \
 acpx --approve-reads <agent> -s <session-name> "<prompt>"
+```
+
+**Long unattended** — same command as short, but wrap the whole thing in `Bash` with `run_in_background: true`. The acpx turn runs inside a Claude Code background task. Output streams through `TaskOutput`, and `<task-notification>` fires on completion. Capture the returned task_id.
+
+```bash
+acpx <agent> sessions ensure --name <session-name> && \
+acpx --approve-reads <agent> -s <session-name> "<prompt>"
+# invoked via Bash with run_in_background: true
+```
+
+**Long steered** — `--no-wait`, detach, then `/loop` to poll:
+
+```bash
+acpx <agent> sessions ensure --name <session-name> && \
+acpx --approve-reads <agent> -s <session-name> --no-wait "<prompt>"
 ```
 
 Include relevant context in the prompt — file paths, constraints, what has already been tried. A good delegation prompt is self-contained.
