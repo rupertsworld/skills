@@ -1,6 +1,6 @@
 ---
-name: issue
-description: Start work on a Linear issue. Fetches the issue, creates a worktree on a conventionally-named branch (e.g. `feat/do-this-thing`), reads the project's must-read docs (following AGENTS.md / CLAUDE.md routing), then invokes the code-plan skill to produce a plan. Use when the user says "/issue <key-or-name>" or asks to start, begin, pick up, or plan work on a Linear issue.
+name: linear
+description: Start work on a Linear issue. Fetches the issue, creates a worktree on a conventionally-named branch (e.g. `feat/do-this-thing`), reads the project's must-read docs (following AGENTS.md / CLAUDE.md routing), then invokes the code-plan skill to produce a plan. Use when the user says "/linear <key-or-name>" or asks to start, begin, pick up, or plan work on a Linear issue.
 ---
 
 Ground in a Linear issue and the project's routing docs, then hand off to `code-plan` for a structured planning dialogue.
