@@ -34,11 +34,13 @@ Stop any long-running processes started during the session.
 
 ### 2. Worktrees
 
-List worktrees: `git worktree list`. For each worktree under `.worktrees/<name>/`:
+List worktrees: `git worktree list`. For each worktree under `.worktrees/<name>/` **that this session created or explicitly worked on**:
 
-- If the worktree's branch is fully merged into `main` (see §4 for the check), it's a cleanup candidate.
+- If its branch is fully merged into `main` (see §4 for the check), it's a cleanup candidate.
 - Remove via the `worktree` skill's remove path: `git worktree remove .worktrees/<name>`. No `--force` unless the user explicitly asks — a dirty worktree is a signal, not an obstacle.
 - Leave worktrees whose branches still have unmerged work alone. Mention them so the user can decide.
+
+**Pre-existing worktrees are out of scope.** If they happen to be merged, list them in the report as "other merged worktrees you may want to clean up later", but do not propose removing them without explicit instruction.
 
 ### 3. Linked CLIs and symlinks
 
