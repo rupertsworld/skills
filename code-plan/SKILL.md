@@ -88,27 +88,30 @@ Plans are ephemeral. They're work orders, not permanent documentation. After imp
 
 ## Plan structure
 
-### Summary (top of document)
+### Overview (top of document)
 
-Open with a short narrative paragraph — one or two sentences — that explains **why** this change exists and what it does at the highest level. Then reproduce the Summary report from Stage 3 as sub-sections (Behavior change, UI change, Interface delta, Ownership, Data flow). The narrative paragraph replaces a separate "Overview" section; don't write both.
+A short narrative paragraph or two — the big-picture "why." What's the problem, what does this change replace, why this shape. Written for a reader who hasn't followed the dialogue. Keep it tight; the architectural specifics come next.
 
-The Summary carries most of "what" and "how it looks" so the sections below don't need to repeat them.
+### Summary
 
-### Decisions
+Reproduce the Summary report from Stage 3. Sub-sections (include only those that apply): **Behavior change**, **UI change**, **Interface delta**, **Ownership**, **Data flow**. This is the scannable architectural map of the post-change system.
 
-Flat bullet list of the deliberate choices made during the dialogue — the "why this way" answers that a future reader (or the implementer at a decision point) would otherwise have to reconstruct. Keep it tight; skip anything obvious.
+### Domain sections (body)
 
-Examples of what belongs: "nested DELETE route only; flat route removed — no legitimate use case for 'delete everywhere' in v1." "Last-writer-wins; no version handshake." "404 on non-membership rather than idempotent no-op — surfaces bugs."
+Group the body around **functional/domain areas of the change**, named after the concept (not the package). For TV-78: "Artifact removal" and "Workspace removal" rather than "ServerStore" and "Routes." Multiple layers of a single concept (store + route + client + types) belong in the same section.
 
-### Tests
+Each domain section weaves everything relevant together:
 
-Tests grouped by piece (ServerStore, Routes, CLI, Web UI, etc.). Short descriptions, not full test code. Each group lists the scenarios that prove the piece meets its half of the Summary.
+- **What changes and how it behaves.** The core mechanic.
+- **Rationale inline.** Why nested URL instead of flat? Why 404 instead of no-op? The "why this way" lives next to the "what," so the reader doesn't have to cross-reference a separate Decisions list.
+- **Interfaces touched.** Signatures, payloads, events, errors belonging to this domain — pinned down the same way they were in the Summary's Interface delta, but expanded with the local nuance.
+- **Tests.** The scenarios that prove this piece works. Short descriptions.
 
-If a change is tiny, a single flat list is fine — don't force groups when there's nothing to group.
+Domains vary — sometimes a single concept deserves its own section (CLI, Web UI, a cross-cutting helper like "reference membership"), sometimes two concepts share one. Pick what makes the reader's job easiest.
 
-### Constraints
+No separate **Decisions** section — the plan is all decisions. Rationale lives inline where it applies.
 
-Invariants that apply across the whole change. Things the implementation must never violate. "Server is always the source of truth", "all operations go through X", "never do Y."
+No separate **Constraints** section unless a genuinely cross-cutting invariant has no natural home in a domain section (rare). If it has a home, put it there.
 
 ### Out of scope
 
@@ -124,7 +127,7 @@ Which documentation files need updating as part of this change.
 - **Keep it short.** A page or two max. If it's longer, the scope is too big; split it.
 - **Don't prescribe file names or directory trees in detail.** Specify the structure and key moves, but let the implementer decide exact file names unless one was explicitly agreed on.
 - **Pin what was decided, skip what wasn't.** If something was discussed and a choice was made, capture it. If it wasn't discussed, don't invent a decision — leave it to the implementer.
-- **No per-piece prose sections by default.** The Summary + Decisions + Tests decomposition covers most plans. Add a per-piece prose section only when a particular component has a complex internal design that the Summary can't convey in one line.
+- **Domain sections over mechanical groupings.** "Artifact removal" beats "ServerStore + Routes + Client" as a grouping — it follows how a reader thinks about the change, not how the code is filed.
 
 ## Re-thinking the plan
 
