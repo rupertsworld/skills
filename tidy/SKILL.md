@@ -5,6 +5,17 @@ description: Wind down transient state from a development session — stop backg
 
 Return the machine to a clean baseline after a feature lands. `/tidy` walks a cleanup list — background processes, worktrees, linked binaries, merged branches — and acts only with confirmation for anything destructive or shared.
 
+## Scope: only touch what this session created
+
+**Never remove worktrees or delete branches this session didn't work on, even if they look merged.** A merged branch you've never touched may still be load-bearing for the user — open in an editor, holding a deliberate checkpoint, left around on purpose. You don't know.
+
+The relevant question isn't "is this branch merged into main?" — it's "did I create this branch or worktree in this session, or was it explicitly handed to me to clean up?"
+
+- In scope: worktrees the agent created in this session, branches the agent created, binaries the agent linked, processes the agent started.
+- Out of scope: anything that existed before the session started. Mention it in the report if it looks like it could be cleaned up, but don't act without explicit instruction.
+
+If in doubt, ask.
+
 ## Invocation
 
 - `/tidy` — survey the current session + repo and propose a cleanup list. Act only after the user confirms (or opts individual items out).
