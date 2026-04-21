@@ -79,15 +79,16 @@ Not every section needs all three sub-parts. A small change might just need beha
 
 Invariants that apply across the whole change. Things the implementation must never violate. "Server is always the source of truth", "all operations go through X", "never do Y."
 
-### API / behavior changes (bottom, if any)
+### Interfaces (if any are new or changing)
 
-If the plan modifies any existing API, event shape, storage format, CLI flag, return value, error type, or observable behavior, list each change here with:
-- **Before:** the current signature/shape/behavior (quoted from code)
-- **After:** the new signature/shape/behavior
-- **Affected callers:** every consumer touched by the change
-- **Migration / compatibility note:** breaking or not, and what downstream work is implied
+For every interface the plan introduces or changes — API, event, CLI, return shape, observable behavior — spell the full shape out. This is a reference section the implementer can work from directly; they shouldn't have to guess field names, types, or cases.
 
-If there are no such changes, omit this section.
+For each interface:
+- **Name** and what it is (e.g. event on bus `foo`, method on `Bar`, CLI subcommand)
+- **Full shape:** inputs, outputs, payload fields, flags, error cases — everything the caller or consumer sees
+- **If modifying an existing interface:** quote the current shape from code alongside the new one so the delta is visible
+
+Interfaces pinned down during clarify/approach must all appear here. If an interface is under-specified when writing the plan, go back and resolve it with the user.
 
 ### Out of scope (bottom)
 
