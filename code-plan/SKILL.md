@@ -90,11 +90,11 @@ Plans are ephemeral. They're work orders, not permanent documentation. After imp
 
 ### Overview (top of document)
 
-A short narrative paragraph or two — the big-picture "why." What's the problem, what does this change replace, why this shape. Written for a reader who hasn't followed the dialogue. Keep it tight; the architectural specifics come next.
+A short narrative paragraph or two — the big-picture "why." What's the problem, what does this change replace, why this shape. Written for a reader who hasn't followed the dialogue.
 
-### Summary
+Optionally follow the paragraph with a "Major changes" dot-list — a handful of bullets calling out the biggest observable deltas (behavioral, interface-level, or UX). Useful for medium-sized changes where one paragraph can't name every headline. Keep it short; a reader who wants detail goes to the domain sections.
 
-Reproduce the Summary report from Stage 3. Sub-sections (include only those that apply): **Behavior change**, **UI change**, **Interface delta**, **Ownership**, **Data flow**. This is the scannable architectural map of the post-change system.
+The Summary report from Stage 3 does **not** reappear as a section in the plan. Its contents get distributed into the Overview bullets and the domain sections where each piece naturally belongs — behavior changes inline with the code that changes them, interface deltas next to the route/method they modify, UI renders inside the CLI/UI section, ownership notes mentioned where relevant. The Summary report is a pre-plan approval artifact, not a plan section.
 
 ### Domain sections (body)
 
