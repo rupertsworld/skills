@@ -104,7 +104,10 @@ Each domain section weaves everything relevant together:
 
 - **What changes and how it behaves.** The core mechanic.
 - **Rationale inline.** Why nested URL instead of flat? Why 404 instead of no-op? The "why this way" lives next to the "what," so the reader doesn't have to cross-reference a separate Decisions list.
-- **Interfaces touched.** Signatures, payloads, events, errors belonging to this domain — pinned down the same way they were in the Summary's Interface delta, but expanded with the local nuance.
+- **Interfaces touched.** Signatures, payloads, events, errors belonging to this domain. Give the reader enough context to find and understand the interface without grepping:
+  - **Where it lives.** Package + file path (e.g. "`ArtifactClient` in `packages/shared/src/client.ts`"), or class/module for typescript-level interfaces, or the route path for HTTP.
+  - **What it is today.** If modifying an existing interface, quote or summarize the current shape alongside the new shape so the delta is visible. Don't force the reader to infer "this is a change" from the fact that the section exists.
+  - **Full new shape.** Inputs, outputs, fields, errors. No hand-waving — if a field's shape isn't nailed down, nail it down now.
 - **Tests.** The scenarios that prove this piece works. Short descriptions.
 
 Domains vary — sometimes a single concept deserves its own section (CLI, Web UI, a cross-cutting helper like "reference membership"), sometimes two concepts share one. Pick what makes the reader's job easiest.
