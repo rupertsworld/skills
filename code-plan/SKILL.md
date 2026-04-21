@@ -88,15 +88,11 @@ Plans are ephemeral. They're work orders, not permanent documentation. After imp
 
 ## Plan structure
 
-### Overview (top of document)
+### Summary (top of document)
 
-Start with **why** this change exists and a brief description of what it does. Include the reasoning and motivation — not just "what" but "why this way." If there are distinct deployment modes or usage contexts, describe them here.
+Open with a short narrative paragraph — one or two sentences — that explains **why** this change exists and what it does at the highest level. Then reproduce the Summary report from Stage 3 as sub-sections (Behavior change, UI change, Interface delta, Ownership, Data flow). The narrative paragraph replaces a separate "Overview" section; don't write both.
 
-Keep it to a short paragraph or two. The reader should understand the purpose and shape of the change before reading any details.
-
-### Summary
-
-Reproduce the Summary report from Stage 3 verbatim (or with minor edits the user called for during approval). This is the architectural view of the post-change system — Behavior change, UI change, Interface delta, Ownership, Data flow (optional). It carries most of "what" and "how it looks" so the sections below don't need to repeat them.
+The Summary carries most of "what" and "how it looks" so the sections below don't need to repeat them.
 
 ### Decisions
 
