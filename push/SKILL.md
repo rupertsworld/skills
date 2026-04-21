@@ -13,18 +13,27 @@ Either:
 
 ## Steps
 
-### 1. Pre-flight
+### 1. Sync state to origin
 
-Run these in parallel:
+The cloud VM clones from GitHub at the current branch's pushed tip. Anything local-only (uncommitted changes, unpushed commits) won't be visible. This stage makes sure the branch on origin reflects what the user expects the cloud to see.
+
+Gather state first (parallel):
 - `git rev-parse --abbrev-ref HEAD` — current branch.
-- `git status --porcelain` — uncommitted changes.
-- `git ls-remote --exit-code --heads origin <branch>` — branch exists on origin.
-- `git log --oneline origin/<branch>..HEAD 2>/dev/null` — local-only commits.
+- `git status --porcelain` — uncommitted/untracked.
+- `git ls-remote --exit-code --heads origin <branch>` — branch exists on origin (exit 2 = missing).
+- `git log --oneline origin/<branch>..HEAD 2>/dev/null` — unpushed commits (empty if origin missing).
 
-Fail early and ask the user what to do if:
-- Branch is `main` / `master` or detached HEAD. The cloud VM clones the current branch; `main` is almost never what the user means. Refuse to proceed.
-- Branch is not on origin. Offer `git push -u origin <branch>`. Never auto-push without confirmation.
-- There are uncommitted changes or local-only commits. Cloud clones from GitHub, so those won't be picked up. Offer to commit/push first; otherwise warn and proceed only if the user confirms.
+Refuse outright:
+- Branch is `main` / `master` or detached HEAD. Cloud clones the current branch; `main` is almost never what the user means.
+
+Otherwise act:
+
+- **If the input arg is an existing file path and is untracked or modified**, stage just that file and commit it: `git add <path> && git commit -m "Add <path>"` (or "Update <path>"). Targeted so we don't sweep in unrelated dirty state.
+- **If other uncommitted or untracked files remain** after the targeted commit, summarize them and ask the user whether to stage them (with what grouping/message), ignore them, or abort. Never bulk-stage silently.
+- **If branch is not on origin**, `git push -u origin <branch>`. First-time publish; low-risk, proceed without further prompt.
+- **If branch is on origin but has unpushed commits**, `git push`. Same low-risk.
+
+After this stage, the branch tip on origin equals the local tip, so the cloud VM will see what we intend.
 
 ### 2. Dispatch
 
