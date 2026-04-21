@@ -37,18 +37,33 @@ After this stage, the branch tip on origin equals the local tip, so the cloud VM
 
 ### 2. Dispatch
 
-Run `claude --remote "<prompt>"` via `Bash` with `run_in_background: true`. Capture the returned task_id from the Bash result.
+Two non-obvious requirements — both must be right or the cloud session either won't start, or will clone the wrong branch.
 
-If the repo isn't available to the Claude GitHub App (user says "no GitHub" or first attempt errors with a repo-access message), retry with `CCR_FORCE_BUNDLE=1 claude --remote "<prompt>"` — same run_in_background — which uploads the local repo directly instead of cloning from GitHub.
+**A. `claude --remote` needs the prompt via `-p` in background mode.** Running under `run_in_background: true` has no TTY, so `claude` flips to print mode and rejects positional prompts with `Input must be provided either through stdin or as a prompt argument when using --print`. Always pass `-p "<prompt>"` — never a bare positional.
+
+**B. The working directory determines the branch the cloud clones.** `claude --remote` uses the git repo at cwd, at whatever branch that repo is on. If you're running from a worktree on branch `X`, the cwd needs to be that worktree. Do not rely on a `cd` prefix before `claude` — use `env -C <dir>` instead:
+
+```
+env -C /abs/path/to/repo/or/worktree claude --remote -p "<prompt>"
+```
+
+For a prompt longer than a few lines, write it to `$TMPDIR/<name>-prompt.txt` first and pass `-p "$(cat <path>)"`. Keeps the Bash command readable.
+
+Run the whole thing via `Bash` with `run_in_background: true`. Capture the returned task_id.
+
+If the repo isn't available to the Claude GitHub App (user says "no GitHub" or first attempt errors with a repo-access message), retry with `env -C <dir> CCR_FORCE_BUNDLE=1 claude --remote -p "<prompt>"` — uploads the local repo directly instead of cloning from GitHub.
+
+**Sanity-check the dispatch** by calling `TaskOutput(task_id, block: false)` after a few seconds. If status is `failed` with exit code 1 and a short error, fix and re-fire (typical causes: missing `-p`, wrong cwd, bad auth). A status of `running` past the first couple seconds means it's actually talking to the cloud.
 
 ### 3. Report
 
 Tell the user:
 - The task_id.
 - That they can watch progress from their terminal with `/tasks`, or ask this agent to poll with `TaskOutput`.
-- The claude.ai/code URL if they want to steer the session in the browser (`claude sessions` or `/tasks` lists URLs).
+- That **they will receive an automatic `<task-notification>` system-reminder** when the task completes (success or failure) — no polling strictly required.
+- The claude.ai/code URL if they want to steer the session in the browser.
 
-If the user asks to monitor from the conversation, use `TaskOutput(task_id, block: false)` for a snapshot or `block: true` to wait for completion. For continuous polling, `/loop` with a reasonable interval (e.g. `/loop 5m` checking TaskOutput) — not a tight poll.
+If the user asks to monitor actively from the conversation, use `TaskOutput(task_id, block: false)` for an instant snapshot. `block: true` blocks the agent until completion — use sparingly. For interval polling, `/loop` with a sensible cadence — not a tight poll.
 
 ## Notes
 
