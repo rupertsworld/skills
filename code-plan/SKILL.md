@@ -29,6 +29,19 @@ When proposing names, types, states, or conventions, check the existing codebase
 
 Don't specify types, interfaces, or implementation details — those are the agent's job during implementation. Focus on decisions and constraints.
 
+#### Changes to existing API or behavior
+
+**Critical:** If the plan proposes modifying an existing API, event shape, storage format, CLI flag, return value, error type, or any observable behavior — flag it explicitly and confirm before proceeding.
+
+For each proposed change:
+
+1. **Verify the current state.** Read the relevant code (don't guess). Quote the current signature, shape, or behavior so the user can see exactly what's changing.
+2. **State the change clearly.** "Currently X does Y; this plan changes it to do Z." Name every call site, consumer, or caller that is affected.
+3. **Call out compatibility impact.** Is this a breaking change? Does it require a migration? Does it affect persisted data, stored artifacts, or on-wire formats? Does it change something another workspace or package depends on?
+4. **Get explicit confirmation.** Do not fold API/behavior changes into the broader approach sign-off — ask about each one specifically. "This changes the shape of the `X` event — confirm?" A general "yes, the approach looks good" is not sufficient confirmation for a breaking change.
+
+Default to preserving existing behavior. If a change looks convenient but isn't strictly required by the task, propose it separately rather than bundling it in.
+
 ### 3. Write the plan
 
 With both stages approved, write the plan. Follow the structure below.
