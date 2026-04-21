@@ -53,8 +53,8 @@ If earlier in this session a global binary was linked from a worktree or feature
 ### 4. Merged local branches
 
 - Fetch first: `git fetch --all --prune` so "merged into main" reflects the remote's current state.
-- Identify candidates: `git branch --merged main` — exclude `main`, `master`, and the currently checked-out branch.
-- Delete each with `git branch -d <name>`. Never `-D` (force) unless the user explicitly authorizes it for a specific branch.
+- **Only candidates** are branches this session created or explicitly worked on. Other merged branches (even if `git branch --merged main` lists them) are out of scope — list them at most as "these look merged and you might want to prune them later" and leave them alone.
+- Delete each in-scope candidate with `git branch -d <name>`. Never `-D` (force) unless the user explicitly authorizes it for a specific branch.
 - If `git branch -d` refuses because a branch isn't merged to `main` per git's check, surface the refusal — do not escalate.
 
 ### 5. Merged remote branches
