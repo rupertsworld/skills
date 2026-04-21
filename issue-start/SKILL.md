@@ -35,7 +35,7 @@ If the input is missing or ambiguous, ask the user which issue before proceeding
 - If the issue touches an area not covered by the routing, grep the codebase to find the relevant module and skim its code and tests.
 - If the repo has no AGENTS.md / CLAUDE.md, fall back to the README and the top-level `docs/` directory.
 
-### 3. Hand off to code-plan
+### 4. Hand off to code-plan
 
 - Summarize in one or two sentences what the issue wants and what was read.
 - Invoke the `code-plan` skill to run the structured planning dialogue.
