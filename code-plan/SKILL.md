@@ -29,18 +29,19 @@ When proposing names, types, states, or conventions, check the existing codebase
 
 Don't specify types, interfaces, or implementation details — those are the agent's job during implementation. Focus on decisions and constraints.
 
-#### Changes to existing API or behavior
+#### API or behavior changes
 
-**Critical:** If the plan proposes modifying an existing API, event shape, storage format, CLI flag, return value, error type, or any observable behavior — flag it explicitly and confirm before proceeding.
+**Critical:** Any time the plan touches an interface — a new API, a changed API, a new or modified CLI flag, a new event, a modified return shape, a new or modified observable behavior — pin the interface down fully and confirm it with the user before writing the plan.
 
-For each proposed change:
+The point is **clarity on the whole interface**, not compatibility. The user and the implementer should both be able to see the full shape of every interface the plan introduces or changes, without having to infer it.
 
-1. **Verify the current state.** Read the relevant code (don't guess). Quote the current signature, shape, or behavior so the user can see exactly what's changing.
-2. **State the change clearly.** "Currently X does Y; this plan changes it to do Z." Name every call site, consumer, or caller that is affected.
-3. **Call out compatibility impact.** Is this a breaking change? Does it require a migration? Does it affect persisted data, stored artifacts, or on-wire formats? Does it change something another workspace or package depends on?
-4. **Get explicit confirmation.** Do not fold API/behavior changes into the broader approach sign-off — ask about each one specifically. "This changes the shape of the `X` event — confirm?" A general "yes, the approach looks good" is not sufficient confirmation for a breaking change.
+For each interface involved:
 
-Default to preserving existing behavior. If a change looks convenient but isn't strictly required by the task, propose it separately rather than bundling it in.
+1. **Verify what's there now.** If modifying something that exists, read the code (don't guess). Quote the current signature or shape so it's clear what's changing.
+2. **Lay out the full interface.** Name, inputs, outputs, error cases, side effects. For events/messages, the full payload shape. For a CLI, every flag and its semantics. For a function, the signature and what it returns in each case. No hand-waving — if a field's shape isn't nailed down, nail it down now.
+3. **Walk through each interface explicitly.** Don't fold this into a general "does the approach look good?" sign-off. Present each interface on its own and confirm it — "the `X` event will carry `{a, b, c}` — confirm?" If something is ambiguous or under-specified, resolve it now, not during implementation.
+
+When in doubt, err toward more explicit. Pinning an interface down in the plan is cheap; discovering mid-implementation that the user had a different shape in mind is not.
 
 ### 3. Write the plan
 
