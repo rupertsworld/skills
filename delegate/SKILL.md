@@ -11,14 +11,15 @@ Delegate a task to a background coding agent (default: Codex) using acpx session
 - **Background work**: Offload a long-running task (refactoring, test writing, migration) while continuing other work
 - **Parallel exploration**: Try an alternative approach without interrupting the current session
 
-## Two modes: short vs long
+## Three modes: short, long-unattended, long-steered
 
 Pick a mode before delegating — they have different command shapes and follow-up behavior.
 
 - **Short (foreground)**: quick second opinions, one-shot questions, small reviews. Omit `--no-wait` so the result comes back in the same turn. Return the answer to the user and move on.
-- **Long (background)**: anything that will take more than a minute or two — refactors, test suites, migrations, exploratory work. Use `--no-wait`, then invoke `/loop` to check in on the session periodically, read recent output, and steer or cancel as appropriate. Do NOT spin-poll manually with `Bash` + sleeps — that burns the cache window and the main context.
+- **Long unattended (background task)**: "just go do this, ping me when done." Run acpx synchronously (no `--no-wait`) but wrap it in `Bash` with `run_in_background: true`. The whole turn runs inside a Claude Code background task — output streams through `TaskOutput`, and a `<task-notification>` fires automatically when the acpx turn ends. No polling. Best for fire-and-forget work where you don't need to steer mid-turn.
+- **Long steered (`--no-wait` + `/loop`)**: iterative work where you want to read progress and send follow-ups. Use `--no-wait` so the session detaches, then invoke `/loop` to poll, steer, or cancel. Best when the user explicitly wants tight steering.
 
-If unsure, ask the user which mode they want.
+If unsure which of the two long modes fits, ask. Defaults: "make a PR / write the tests / refactor X" → **long unattended** is usually right. "Explore / investigate / iterate on this" → **long steered**.
 
 ## Important: sandbox
 
