@@ -43,9 +43,42 @@ For each interface involved:
 
 When in doubt, err toward more explicit. Pinning an interface down in the plan is cheap; discovering mid-implementation that the user had a different shape in mind is not.
 
-### 3. Write the plan
+### 3. Summary report
 
-With both stages approved, write the plan. Follow the structure below.
+Before writing the plan, produce a **Summary report** for the user to approve. This is a compact lay-of-the-land view of the post-change system — a reference map, not prose or a todo list. It exists so the user can confirm the whole shape of the change at once rather than inferring it from bullet lists.
+
+The report is a separate artifact from the plan. It can feed the plan later, but the plan uses domain-based sections that integrate these pieces under its own headings.
+
+Structure:
+
+```
+# Summary — <short title>
+
+<one- or two-sentence narrative>: what the change is, why it exists,
+what it replaces. Enough context that the rest of the doc reads cleanly.
+
+## Behavior change
+## UI change
+## Interface delta
+## Ownership
+## Data flow        (optional)
+```
+
+Sub-section rules, in order:
+
+1. **Behavior change** — "was X; now Y" facts about observable app behavior. Semantic deltas, not implementation notes.
+2. **UI change** — end-user surface changes (CLI, web UI, prompts). Render concrete before/after output when practical: CLI output, log lines, prompt strings. Don't try to ASCII-art a whole web UI — describe it in prose when literal rendering isn't feasible.
+3. **Interface delta** — programmatic interfaces the plan touches. Cluster by kind: HTTP, client methods, CLI signatures, types, events, errors. Before/after form for anything with a "before." Events belong here too — fan-out rules, ordering, payloads.
+4. **Ownership** — one line per package/module that gains or changes responsibility. Not what it does in general, just what's new/changed.
+5. **Data flow** — optional. Include only when the call chain is non-obvious (e.g. mid-layer indirection, event-driven coordination across services). Skip for straightforward changes.
+
+Tone: present-tense descriptions of the post-change state. No imperatives ("we will…"), no todo-list framing. Include only sub-sections that apply — skip any that would be empty or trivial.
+
+Walk the user through the report and get explicit approval before writing the plan.
+
+### 4. Write the plan
+
+With all prior stages approved, write the plan. Follow the structure below.
 
 **Where to save:**
 - If the user specifies a path, use that
