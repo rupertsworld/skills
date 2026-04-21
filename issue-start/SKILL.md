@@ -23,7 +23,7 @@ If the input is missing or ambiguous, ask the user which issue before proceeding
 
 ### 2. Create a worktree for the issue
 
-- Invoke the `worktree` skill with the issue key lowercased (e.g. `TEL-123` → `tel-123`) as the name. This creates `.worktrees/<key>/` on a branch of the same name, or attaches if the branch already exists.
+- Invoke the `worktree` skill with the issue key verbatim (e.g. `TEL-123`) as the name. This creates `.worktrees/<key>/` on a branch of the same name, or attaches if the branch already exists.
 - If the issue key can't be determined (e.g. the user searched by title and didn't confirm a key), ask before inventing a name.
 - Treat the worktree as the active working location for the rest of the session — read docs, run the planning dialogue, and write the plan there.
 
