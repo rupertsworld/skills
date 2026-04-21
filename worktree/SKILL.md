@@ -23,10 +23,30 @@ The session's sandbox is scoped to the current repo. Putting worktrees under `<r
 3. **Dispatch on whether the branch exists.** `git show-ref --verify --quiet refs/heads/<name>`:
    - **Exists → attach:** `git worktree add .worktrees/<name> <name>`
    - **New → create:** `git worktree add -b <name> .worktrees/<name>` from the confirmed base
-4. **Report the absolute path** of the new worktree. One line, no ceremony.
-5. **Announce the session handoff** (see below).
+4. **Install dependencies** — see below. Skip only if the repo has no package manager.
+5. **Report the absolute path** of the new worktree. One line, no ceremony.
+6. **Announce the session handoff** (see below).
 
 Let git errors surface as-is — if the branch is already checked out in another worktree, if the target path exists, if the tree is dirty, the git error is clearer than anything this skill could synthesise.
+
+## Dependency setup
+
+A worktree that shares `node_modules/` (or any checkout-local dependency dir) with another checkout will **silently load source from the wrong branch**. In npm workspaces, package symlinks inside `node_modules/@scope/pkg` are relative (`../../packages/pkg`) and resolve against whichever `node_modules/` they live in — so a worktree whose `node_modules/` is a symlink to the main checkout's will read main's workspace-package source, not the worktree's. Tests and dev servers can pass or fail for reasons that have nothing to do with the branch under edit. **Never symlink `node_modules/` (or equivalent) from another checkout.**
+
+After creating or attaching:
+
+1. **Check for stale sharing.** If `.worktrees/<name>/node_modules` exists and is a symlink, delete it (`rm .worktrees/<name>/node_modules` — removes just the symlink, not the target). A real directory is fine; a symlink to another checkout is broken state.
+2. **Detect and install.** From inside the worktree:
+   - `package-lock.json` + `package.json` → `npm ci` (or `npm install` if the lockfile is missing)
+   - `yarn.lock` → `yarn install`
+   - `pnpm-lock.yaml` → `pnpm install`
+   - `bun.lockb` → `bun install`
+   - `uv.lock` / `poetry.lock` / `requirements.txt` → set up a worktree-local venv (`uv sync`, `poetry install`, etc.)
+   - `Cargo.lock` → nothing needed; `target/` is already per-checkout
+   - No recognised manifest → skip.
+3. Let the install command's errors surface. Don't paper over them.
+
+If the user is on a constrained machine and objects to the full install, ask — but make the tradeoff explicit: shared `node_modules/` will give wrong results for any cross-branch divergence in workspace packages.
 
 ## Naming
 
