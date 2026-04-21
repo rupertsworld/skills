@@ -37,10 +37,22 @@ If a worktree for the branch already exists, reuse it.
 
 Write tests that cover the plan's acceptance criteria before writing any implementation code.
 
+**North star:** the user should never have to actually run the app to verify the change works. If the test suite passes, the feature works — beyond reasonable doubt. If your tests can't give that confidence, they're at the wrong level.
+
+**Pick the level by user-observable surface, not by "how big is the change":**
+
+- **e2e — default for anything a user can touch.** CLI commands, UI flows, HTTP endpoints, app features. Drive the real entry point the way a user would: spawn the CLI, click the button, send the request. If the user could verify this by clicking or typing, the test must do exactly that.
+- **integration — for internal seams that aren't directly user-facing.** A service talking to the DB, a pipeline stage, cross-module wiring. Use when there is no user surface to exercise, or when the seam sits below the user-facing layer and needs direct coverage.
+- **unit — only for isolated logic with real branching.** Parsers, reducers, algorithms, pure functions with non-trivial cases. Not for "this change is small" — for "the logic itself is what's tricky."
+- **no new tests — for truly trivial changes.** Renames, typos, dead-code removal, internal refactors with no behavior change. Existing tests should still pass; don't invent a unit test to feel productive.
+
+Adding or changing a feature in an app/CLI/server → default to e2e. Reach for integration or unit only when there's a real reason the higher level can't cover it.
+
+**If e2e infrastructure doesn't exist for the surface you're touching:** stop and flag it. Either build the infra (preferred) or explicitly call out that you're dropping to integration and why. Do not silently default down — that's how features ship unverified.
+
 - Test names should map to acceptance criteria so failures are traceable
-- Layer tests by type (unit, integration, e2e) where appropriate for the project
 - Tests must rigorously exercise real code paths — no shortcuts
-- Reasonable mocks only where necessary (external services, I/O)
+- Reasonable mocks only where necessary (external services, true I/O to third parties). Do not mock the thing you are testing, or the layer immediately beneath it.
 - Test observable outcomes, not internal mechanics
 
 ### 5. Implement
