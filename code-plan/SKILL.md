@@ -94,40 +94,31 @@ Start with **why** this change exists and a brief description of what it does. I
 
 Keep it to a short paragraph or two. The reader should understand the purpose and shape of the change before reading any details.
 
-### Core sections (body)
+### Summary
 
-Organize the body around the **core pieces** of the change — not generic headings like "scope" or "acceptance criteria", but named after the actual things being built or changed. For example: "CLI", "TelevisionClient", "Source reorganization", "Skill".
+Reproduce the Summary report from Stage 3 verbatim (or with minor edits the user called for during approval). This is the architectural view of the post-change system — Behavior change, UI change, Interface delta, Ownership, Data flow (optional). It carries most of "what" and "how it looks" so the sections below don't need to repeat them.
 
-Each core section should flow from high-level to specific:
+### Decisions
 
-1. **Behavior / API first.** What does this piece do from the outside? Commands, endpoints, methods, inputs/outputs. Lead with the interface the user or consumer sees.
-2. **Decisions.** Key choices made during discussion — trade-offs, conventions, defaults, constraints specific to this piece. Only include decisions that matter to the implementer; skip anything obvious.
-3. **Tests.** What tests should exist for this piece. Brief descriptions, not full test code. Group them with the piece they test, not in a separate section.
+Flat bullet list of the deliberate choices made during the dialogue — the "why this way" answers that a future reader (or the implementer at a decision point) would otherwise have to reconstruct. Keep it tight; skip anything obvious.
 
-If specific types, APIs, or signatures were agreed on during planning, include them in the relevant section. Don't exhaustively specify implementation details — but do pin down anything that was explicitly decided.
+Examples of what belongs: "nested DELETE route only; flat route removed — no legitimate use case for 'delete everywhere' in v1." "Last-writer-wins; no version handshake." "404 on non-membership rather than idempotent no-op — surfaces bugs."
 
-Not every section needs all three sub-parts. A small change might just need behavior + tests. A reorganization might just need the key moves and a note that existing tests must pass. Match the weight to the piece.
+### Tests
 
-### Constraints (bottom)
+Tests grouped by piece (ServerStore, Routes, CLI, Web UI, etc.). Short descriptions, not full test code. Each group lists the scenarios that prove the piece meets its half of the Summary.
+
+If a change is tiny, a single flat list is fine — don't force groups when there's nothing to group.
+
+### Constraints
 
 Invariants that apply across the whole change. Things the implementation must never violate. "Server is always the source of truth", "all operations go through X", "never do Y."
 
-### Interfaces (if any are new or changing)
-
-For every interface the plan introduces or changes — API, event, CLI, return shape, observable behavior — spell the full shape out. This is a reference section the implementer can work from directly; they shouldn't have to guess field names, types, or cases.
-
-For each interface:
-- **Name** and what it is (e.g. event on bus `foo`, method on `Bar`, CLI subcommand)
-- **Full shape:** inputs, outputs, payload fields, flags, error cases — everything the caller or consumer sees
-- **If modifying an existing interface:** quote the current shape from code alongside the new one so the delta is visible
-
-Interfaces pinned down during clarify/approach must all appear here. If an interface is under-specified when writing the plan, go back and resolve it with the user.
-
-### Out of scope (bottom)
+### Out of scope
 
 What's explicitly excluded. Prevents scope creep and sets expectations.
 
-### Docs to update (bottom)
+### Docs to update
 
 Which documentation files need updating as part of this change.
 
@@ -137,7 +128,7 @@ Which documentation files need updating as part of this change.
 - **Keep it short.** A page or two max. If it's longer, the scope is too big; split it.
 - **Don't prescribe file names or directory trees in detail.** Specify the structure and key moves, but let the implementer decide exact file names unless one was explicitly agreed on.
 - **Pin what was decided, skip what wasn't.** If something was discussed and a choice was made, capture it. If it wasn't discussed, don't invent a decision — leave it to the implementer.
-- **Group tests with their piece.** Don't collect all tests at the bottom — put them next to the thing they verify.
+- **No per-piece prose sections by default.** The Summary + Decisions + Tests decomposition covers most plans. Add a per-piece prose section only when a particular component has a complex internal design that the Summary can't convey in one line.
 
 ## Re-thinking the plan
 
