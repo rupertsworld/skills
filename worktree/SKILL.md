@@ -1,13 +1,17 @@
 ---
 name: worktree
-description: Create or manage git worktrees inside the current repo's `.worktrees/` directory. `/worktree <name>` creates or attaches; `/worktree rm <name>` removes; `/worktree list` lists. Worktrees live inside the repo so the current session's sandbox covers them without changes.
+description: Create or manage git worktrees at `~/Repos/worktrees/<repo>@<name>/` (or `<repo>/.worktrees/<name>/` as fallback). `/worktree <name>` creates or attaches; `/worktree rm <name>` removes; `/worktree list` lists.
 ---
 
-Create and manage git worktrees inside the current repo so the current Claude session can switch to isolated branches without losing its sandbox or needing a new session.
+Create and manage git worktrees so the current Claude session can switch to isolated branches without losing its sandbox or needing a new session.
 
-## Why `.worktrees/` inside the repo
+## Where worktrees live
 
-The session's sandbox is scoped to the current repo. Putting worktrees under `<repo>/.worktrees/<name>/` means the new checkout is automatically inside the existing allowlist — no sandbox edits, no new session. Worktrees live alongside the repo, git sees them (via `git worktree list`), and the main checkout treats the directory as gitignored.
+Default: `~/Repos/worktrees/<repo>@<name>/` — a flat directory of all active worktrees across every repo on the machine, named `<repo>@<name>` so worktrees from different repos don't collide. This location is inside the session's sandbox write allowlist (`~/Repos`) and is easy to surface at the top level of the user's IDE file tree.
+
+Fallback: `<repo>/.worktrees/<name>/` — used only if `~/Repos/worktrees/` does not exist. The worktree is gitignored in the main checkout.
+
+`<repo>` is the main checkout's directory basename (e.g. `television`, not `Television` or a remote slug). `<name>` is the worktree name argument.
 
 ## Invocation
 
@@ -18,15 +22,16 @@ The session's sandbox is scoped to the current repo. Putting worktrees under `<r
 
 ## Create or attach
 
-1. **Ensure `.worktrees/` is gitignored.** Check the repo's root `.gitignore`. If `.worktrees/` isn't there, add it. Don't commit — let the user decide when.
+1. **Pick the worktree path.**
+   - If `~/Repos/worktrees/` exists: use `~/Repos/worktrees/<repo>@<name>`.
+   - Else: use `<repo>/.worktrees/<name>`, and ensure `.worktrees/` is in the repo's root `.gitignore` (add it if not, without committing).
 2. **Check the base branch.** Run `git rev-parse --abbrev-ref HEAD`. If it isn't `main`, ask the user whether to branch from the current HEAD or switch to `main` first. Don't assume.
 3. **Dispatch on whether the branch exists.** `git show-ref --verify --quiet refs/heads/<name>`:
-   - **Exists → attach:** `git worktree add .worktrees/<name> <name>`
-   - **New → create:** `git worktree add -b <name> .worktrees/<name>` from the confirmed base
+   - **Exists → attach:** `git worktree add <path> <name>`
+   - **New → create:** `git worktree add -b <name> <path>` from the confirmed base
 4. **Install dependencies** — see below. Skip only if the repo has no package manager.
-5. **Add a flat-dir symlink** — see below. Skip silently if the user doesn't use the convention.
-6. **Report the absolute path** of the new worktree. One line, no ceremony.
-7. **Announce the session handoff** (see below).
+5. **Report the absolute path** of the new worktree. One line, no ceremony.
+6. **Announce the session handoff** (see below).
 
 Let git errors surface as-is — if the branch is already checked out in another worktree, if the target path exists, if the tree is dirty, the git error is clearer than anything this skill could synthesise.
 
@@ -36,7 +41,7 @@ A worktree that shares `node_modules/` (or any checkout-local dependency dir) wi
 
 After creating or attaching:
 
-1. **Check for stale sharing.** If `.worktrees/<name>/node_modules` exists and is a symlink, delete it (`rm .worktrees/<name>/node_modules` — removes just the symlink, not the target). A real directory is fine; a symlink to another checkout is broken state.
+1. **Check for stale sharing.** If `<worktree>/node_modules` exists and is a symlink, delete it (`rm <worktree>/node_modules` — removes just the symlink, not the target). A real directory is fine; a symlink to another checkout is broken state.
 2. **Detect and install.** From inside the worktree:
    - `package-lock.json` + `package.json` → `npm ci` (or `npm install` if the lockfile is missing)
    - `yarn.lock` → `yarn install`
@@ -60,22 +65,11 @@ Don't ask the user to `sudo chown` their npm cache — that's treating the sympt
 
 If the user is on a constrained machine and objects to the full install, ask — but make the tradeoff explicit: shared `node_modules/` will give wrong results for any cross-branch divergence in workspace packages.
 
-## Flat-dir symlink
-
-If the user keeps a flat index of active worktrees at `~/Repos/worktrees/` (the directory exists), add a symlink there pointing at the new worktree:
-
-```bash
-ln -s <worktree-absolute-path> ~/Repos/worktrees/<name>
-```
-
-This gives one place to see every active worktree across all repos without navigating into each repo's `.worktrees/`. If `~/Repos/worktrees/` doesn't exist, skip silently — it's a user convention, not required for the worktree to work.
-
-If `~/Repos/worktrees/<name>` already exists, let the error surface rather than clobbering — the user may have a separate worktree of the same name from another repo.
-
 ## Naming
 
-- If the user gives a name, use it verbatim.
+- If the user gives a name, use it verbatim (as `<name>` in `<repo>@<name>`).
 - If not, invent a short lowercase hyphenated name based on the task at hand and the conventions of existing branches (`git branch --list` — look for prefixes like `feat/`, `fix/`, etc., and match them). No generic prefix.
+- The branch name usually matches `<name>` or follows the repo's branch prefix convention (`feat/<name>`, `fix/<name>`, etc.). The directory name is always just `<repo>@<name>` — don't embed the branch prefix in the directory.
 
 ## Session handoff — routing work to the worktree
 
@@ -93,8 +87,8 @@ When announcing the new worktree, tell the user plainly: "Using `<absolute path>
 
 `/worktree rm <name>`:
 
-1. `git worktree remove .worktrees/<name>` — this fails cleanly if the worktree has uncommitted work. Don't `--force` without explicit user confirmation.
-2. If `~/Repos/worktrees/<name>` is a symlink (from the flat-dir convention), remove it: `rm ~/Repos/worktrees/<name>` (removes the symlink only, not the target). Only touch it if it's a symlink — never a real directory.
+1. Find the worktree path via `git worktree list` (accepting either `<repo>@<name>` in the flat dir or `<name>` under `.worktrees/`).
+2. `git worktree remove <path>` — this fails cleanly if the worktree has uncommitted work. Don't `--force` without explicit user confirmation.
 3. If the branch `<name>` still exists and is fully merged into `main` (`git branch --merged main`), ask the user whether to delete it. Never delete unmerged branches without explicit confirmation.
 
 ## List
@@ -104,4 +98,4 @@ When announcing the new worktree, tell the user plainly: "Using `<absolute path>
 ## Non-goals
 
 - Not related to the `Agent` tool's `isolation: "worktree"` flag — that's for spawning sub-agents in isolated worktrees; this skill is for the current session's working location.
-- Doesn't manage sandbox config. Worktrees live inside the repo so existing sandbox permissions already apply.
+- Doesn't manage sandbox config. The default flat-dir location (`~/Repos/worktrees/`) is already inside the `~/Repos` write allowlist.
