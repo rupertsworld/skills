@@ -49,30 +49,21 @@ Before writing the plan, produce a **Summary report** for the user to approve. T
 
 The report is a separate artifact from the plan. It can feed the plan later, but the plan uses domain-based sections that integrate these pieces under its own headings.
 
-Structure:
+Format: normal markdown. Render the report with an H1 title and normal H2 sub-sections — not inside a fenced code block, not a fixed-width text box. The outline below is a menu of candidate sections in canonical order; use only the ones that apply to this change, and pick whichever structure inside each section (bullets, prose, code blocks for literal output) reads most clearly.
 
-```
-# Summary — <short title>
+Candidate sections, in order:
 
-<one- or two-sentence narrative>: what the change is, why it exists,
-what it replaces. Enough context that the rest of the doc reads cleanly.
+- `# Summary — <short title>`
+- One- or two-sentence narrative: what the change is, why it exists, what it replaces. Enough context that the rest of the doc reads cleanly.
+- `## Behavior change` — "was X; now Y" facts about observable app behavior. Lead with the semantic delta. Include implementation detail when the how is load-bearing for understanding the shape of the change (e.g. "reads root package.json at CJS-require time because the bundle sits next to it post-install") — skip it when the how is incidental.
+- `## UI change` — end-user surface changes (CLI, web UI, prompts). Render concrete before/after output when practical: CLI output, log lines, prompt strings. Don't try to ASCII-art a whole web UI — describe it in prose when literal rendering isn't feasible.
+- `## Interface delta` — programmatic interfaces the plan touches. Cluster by kind: HTTP, client methods, CLI signatures, types, events, errors. Before/after form for anything with a "before." Events belong here too — fan-out rules, ordering, payloads.
+- `## Ownership` — one line per package/module that gains or changes responsibility. Not what it does in general, just what's new/changed.
+- `## Data flow` — include only when the call chain is non-obvious (e.g. mid-layer indirection, event-driven coordination across services). Skip for straightforward changes.
 
-## Behavior change
-## UI change
-## Interface delta
-## Ownership
-## Data flow        (optional)
-```
+Not every section applies to every change. Skip any that would be empty, trivial, or redundant with another section in this specific change. A tiny change might only have Behavior change + Interface delta; a UI-only change might skip Interface delta entirely. Don't pad.
 
-Sub-section rules, in order:
-
-1. **Behavior change** — "was X; now Y" facts about observable app behavior. Semantic deltas, not implementation notes.
-2. **UI change** — end-user surface changes (CLI, web UI, prompts). Render concrete before/after output when practical: CLI output, log lines, prompt strings. Don't try to ASCII-art a whole web UI — describe it in prose when literal rendering isn't feasible.
-3. **Interface delta** — programmatic interfaces the plan touches. Cluster by kind: HTTP, client methods, CLI signatures, types, events, errors. Before/after form for anything with a "before." Events belong here too — fan-out rules, ordering, payloads.
-4. **Ownership** — one line per package/module that gains or changes responsibility. Not what it does in general, just what's new/changed.
-5. **Data flow** — optional. Include only when the call chain is non-obvious (e.g. mid-layer indirection, event-driven coordination across services). Skip for straightforward changes.
-
-Tone: present-tense descriptions of the post-change state. No imperatives ("we will…"), no todo-list framing. Include only sub-sections that apply — skip any that would be empty or trivial.
+Tone: present-tense descriptions of the post-change state. No imperatives ("we will…"), no todo-list framing.
 
 Walk the user through the report and get explicit approval before writing the plan.
 
