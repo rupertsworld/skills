@@ -3,30 +3,20 @@ name: delegate
 description: Delegate a task to a background coding agent via acpx. Use when the user wants a second opinion, a long-running background task, or to offload work to another agent.
 ---
 
-Delegate a task to a background coding agent (default: Codex) using acpx sessions. The delegated agent runs independently — you can check on it, steer it, or cancel it at any time.
+Delegate a task to a background coding agent (default: Codex) using acpx sessions. The delegated agent runs independently — you can watch it live, steer it, or cancel it at any time.
 
 ## When to use
 
-- **Second opinion**: Get a different perspective on a problem or approach
-- **Background work**: Offload a long-running task (refactoring, test writing, migration) while continuing other work
+- **Second opinion**: Different perspective on a problem or approach
+- **Background work**: Long-running refactor, test writing, migration, etc. while you keep working
 - **Parallel exploration**: Try an alternative approach without interrupting the current session
 
-## Two modes: short, long-steered
+## Two modes: short and long-steered
 
-Pick a mode before delegating — they have different command shapes and follow-up behavior.
+- **Short (foreground)**: quick second opinions, one-shot questions, small reviews. Omit `--no-wait`; the result returns in this turn. Hand the answer back to the user and move on.
+- **Long steered**: the default for real work. Wrap foreground acpx in Claude's `Bash run_in_background: true` and pass `--format json` — the live JSON event stream flows to the `.output` file (tool calls, agent text deltas, usage updates), so you can read it at any time. Interject by chaining `cancel` + a fresh prompt in one Bash call.
 
-- **Short (foreground)**: quick second opinions, one-shot questions, small reviews. Omit `--no-wait` so the result comes back in the same turn. Return the answer to the user and move on.
-- **Long steered (`--no-wait` + `/loop`)**: default for any real work. Use `--no-wait` so the session detaches, then invoke `/loop` to poll, steer, or cancel. You can `acpx prompt -s <session> --no-wait "..."` mid-flight to interject without killing the session. You can `acpx cancel -s <session>` cooperatively if the work is going sideways.
-
-**Long-unattended is deprecated** (wrap foreground acpx in Claude's `Bash run_in_background` and wait for `<task-notification>`). It sacrifices two things you almost always want:
-- **Live observation** — the persisted `.output` file only captures `[acpx]` setup lines + the final turn message. No tool events, no partial agent text.
-- **Interjection** — to steer, you'd have to kill the Claude bg task (which kills the acpx process), losing the session and its context.
-
-The only niche where long-unattended remains defensible: genuinely mechanical, time-bounded work where no steering could possibly help (e.g., "install this dep and run tests once"). For anything with ambiguity in the spec, where the agent might wedge on a decision, or where you'd want to redirect partway through — use long-steered.
-
-### `--format json` for live stream
-
-acpx's default text output emits sparse events (session-create + final turn text). Pass `--format json` for a structured event stream (tool calls, agent text deltas) to stdout — which you can `tail -f` in real time. Worth defaulting to `--format json` when running long-steered so polling `sessions read` isn't the only observability.
+`--no-wait` is an acpx CLI flag that lets you queue a prompt and return immediately instead of blocking on the current turn — useful if you need to fire a prompt without waiting. The **default recommended pattern below uses foreground acpx + Claude bg-task**, not `--no-wait`, because the bg-task wrapper gives the same non-blocking behavior on the Claude side *and* captures the live stream. Reach for `--no-wait` only when you want the acpx process itself to detach (e.g. long cron-like fires), at the cost of no local stream capture.
 
 ## Important: sandbox
 
@@ -49,115 +39,89 @@ Agent-level options (`-s`, `--no-wait`, `-f`) go **after** the agent name.
 
 Ask the user:
 - **What to delegate**: The task or question for the background agent
-- **Agent** (optional): Which agent to use — default is `codex`, but `claude`, `pi`, `gemini`, etc. are available
-- **Working directory** (optional): Defaults to current project directory
-- **Permissions** (optional): `--approve-all` for full autonomy, `--approve-reads` for read-only autonomy (default), or `--deny-all` for no tool access
+- **Agent** (optional): default is `codex`, but `claude`, `pi`, `gemini`, etc. work
+- **Permissions** (optional): `--approve-all`, `--approve-reads` (default), or `--deny-all`
 
-### 2. Create the session and send the first prompt in one shell command
+### 2. Kick off the session
 
-Generate a descriptive session name from the task (e.g., `refactor-auth`, `test-coverage`, `review-api`). Chain `sessions ensure` and the first `prompt` call with `&&` so they go out as a single `Bash` tool call — avoids a round-trip and the permission prompt that comes with it.
+Generate a descriptive session name (`refactor-auth`, `test-coverage`, `review-api`). Every acpx interaction below is **one Bash tool call** — chain with `&&` so `sessions ensure` and the first prompt go out together, avoiding a second permission prompt. acpx itself has no single-command ensure-and-prompt; the chain is the tightest it allows.
 
-**Short** — omit `--no-wait`, result returns in this turn:
-
-```bash
-acpx <agent> sessions ensure --name <session-name> && \
-acpx --approve-reads <agent> -s <session-name> "<prompt>"
-```
-
-**Long steered** — `--no-wait`, detach, then `/loop` to poll. Prefer `--format json` for a live event stream:
+**Short** — foreground, result in this turn:
 
 ```bash
-acpx <agent> sessions ensure --name <session-name> && \
-acpx --format json --approve-reads <agent> -s <session-name> --no-wait "<prompt>"
+acpx <agent> sessions ensure --name <name> && \
+  acpx --approve-reads <agent> -s <name> "<prompt>"
 ```
 
-Wrap in `Bash` with `run_in_background: true` only when you want to `tail -f` the stream — the detached acpx process doesn't need Claude's bg-task wrapper to stay alive, but wrapping lets you observe it without `sessions read` polling.
+**Long steered** — foreground acpx + `--format json` + Claude bg-task (`run_in_background: true`):
 
-Include relevant context in the prompt — file paths, constraints, what has already been tried. A good delegation prompt is self-contained.
+```bash
+acpx <agent> sessions ensure --name <name> && \
+  acpx --format json --approve-reads <agent> -s <name> "<prompt>"
+```
 
-(Only split into two calls if you need to inspect the `ensure` output — rare.)
+The bg-task doesn't block your turn. The `.output` file fills with live JSON events (`sessionUpdate: agent_message_chunk | tool_call | tool_call_update | usage_update`) — read it any time to see what the agent is thinking or doing right now. A `<task-notification>` fires when the acpx turn completes.
+
+Include relevant context in the prompt — file paths, constraints, what has been tried. A good delegation prompt is self-contained.
 
 ### 3. Report back
 
 Tell the user:
 - The session name
-- How to check on it (see commands below)
-- Whether it's running async or waiting for a result
+- That the live stream is in the task `.output` file (and offer to peek)
+- Whether the turn is still running or already returned
 
-### 4. For long mode: loop to check in
+### 4. Watching and steering a long session
 
-After kicking off a `--no-wait` session, invoke the `/loop` skill to poll and steer it. Let the model self-pace:
+Don't block the user's turn. The main session stays responsive while the delegated turn runs.
 
-```
-/loop check on <session-name>: read recent output, decide whether to steer, send a follow-up prompt, or cancel. Stop looping when the session is idle and the task is done.
-```
-
-**Cadence**: default to **~3 minutes (180s)** between check-ins. Rupert wants tight steering on delegated work, not a set-and-forget. 3 min also stays inside the 5-min prompt-cache window, so each tick is cheap. Only stretch further if the agent explicitly said it's off doing something that will take much longer.
-
-On each tick:
-1. `acpx <agent> status -s <session-name>` — is it still running?
-2. `acpx <agent> sessions read <session-name> --tail 50` — what did it just do?
-3. Decide: let it keep going, send a steering prompt, or cancel. Surface anything notable to the user.
-4. If the task is complete, summarize and end the loop (omit `ScheduleWakeup`).
-
-Do not block the user's turn waiting on the agent — the loop exists precisely so the main session stays responsive.
-
----
-
-## Ongoing management
-
-After delegation, the user may ask to check in, steer, or stop the agent. Use these commands:
-
-### Check status
+**Peek at the stream** — grep the `.output` file for counts, recent tool titles, or agent text:
 
 ```bash
-acpx <agent> status -s <session-name>
+grep -c '"sessionUpdate"' <output-file>
+grep -o '"title":"[^"]*"' <output-file> | tail -10
+grep -o '"agent_message_chunk"[^}]*"text":"[^"]*"' <output-file> | tail -5
 ```
 
-### Read recent output
+**Session status / transcript** (works even after the turn has ended):
 
 ```bash
-acpx <agent> sessions read <session-name> --tail 50
+acpx <agent> status -s <name>
+acpx <agent> sessions read <name> --tail 50
+acpx <agent> sessions history <name> --limit 10
 ```
 
-For a summary of turns:
+**Interject (cancel current turn + send new prompt) — one Bash call**:
 
 ```bash
-acpx <agent> sessions history <session-name> --limit 10
+acpx <agent> cancel -s <name> && \
+  acpx --format json --approve-reads <agent> -s <name> "<new prompt>"
 ```
 
-### Steer the agent
+Cancel is cooperative and returns immediately (`cancel requested`). Session context persists across the cancel — the new prompt sees everything the agent learned in prior turns.
 
-Send a follow-up prompt to redirect or refine its work:
+**Queue instead of cancel** — if you want to let the current turn finish but line up a follow-up, use `--no-wait`:
 
 ```bash
-acpx --approve-reads <agent> -s <session-name> --no-wait "Actually, focus on X instead of Y"
+acpx --approve-reads <agent> -s <name> --no-wait "<follow-up>"
 ```
 
-### Cancel in-flight work
+**Pacing when self-driving a /loop**: default to **~3 minutes (180s)** between check-ins. Rupert wants tight steering on delegated work, not set-and-forget. 3 min also stays inside the 5-min prompt-cache window. Stretch further only if the agent has explicitly said it's off doing something long.
+
+### 5. Close when done
 
 ```bash
-acpx <agent> cancel -s <session-name>
+acpx <agent> sessions close <name>
 ```
 
-This cooperatively cancels the current prompt. The session stays alive — you can send new prompts after cancelling.
-
-### Close the session
-
-When the task is done:
-
-```bash
-acpx <agent> sessions close <session-name>
-```
-
-Note: `sessions read`, `sessions history`, `sessions show`, and `sessions close` all take the session name as a **positional argument**, not `-s`. The `-s` flag is only for `prompt`/`cancel`/`status`/`set`/`set-mode`.
+Note: `sessions read`, `history`, `show`, and `close` take the session name as a **positional argument**. The `-s` flag is only for `prompt` / `cancel` / `status` / `set` / `set-mode`.
 
 ---
 
 ## Tips
 
 - **Session names persist.** You can come back to a session in a future conversation if it's still alive.
-- **List all sessions** with `acpx <agent> sessions list` to see what's running.
-- **Max turns**: Use `--max-turns <n>` to limit how much work the agent does autonomously.
-- **Timeout**: Use `--timeout <seconds>` to cap how long a single response can take.
-- **One-shot mode**: For tasks that don't need a session, use `acpx <agent> exec "<prompt>"` instead.
+- **List sessions** with `acpx <agent> sessions list`.
+- **Max turns**: `--max-turns <n>` to limit autonomous work.
+- **Timeout**: `--timeout <seconds>` to cap how long a single response can take.
+- **One-shot**: `acpx <agent> exec "<prompt>"` for tasks that don't need a saved session.
