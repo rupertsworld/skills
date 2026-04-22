@@ -64,20 +64,14 @@ acpx <agent> sessions ensure --name <session-name> && \
 acpx --approve-reads <agent> -s <session-name> "<prompt>"
 ```
 
-**Long unattended** — same command as short, but wrap the whole thing in `Bash` with `run_in_background: true`. The acpx turn runs inside a Claude Code background task. Output streams through `TaskOutput`, and `<task-notification>` fires on completion. Capture the returned task_id.
+**Long steered** — `--no-wait`, detach, then `/loop` to poll. Prefer `--format json` for a live event stream:
 
 ```bash
 acpx <agent> sessions ensure --name <session-name> && \
-acpx --approve-reads <agent> -s <session-name> "<prompt>"
-# invoked via Bash with run_in_background: true
+acpx --format json --approve-reads <agent> -s <session-name> --no-wait "<prompt>"
 ```
 
-**Long steered** — `--no-wait`, detach, then `/loop` to poll:
-
-```bash
-acpx <agent> sessions ensure --name <session-name> && \
-acpx --approve-reads <agent> -s <session-name> --no-wait "<prompt>"
-```
+Wrap in `Bash` with `run_in_background: true` only when you want to `tail -f` the stream — the detached acpx process doesn't need Claude's bg-task wrapper to stay alive, but wrapping lets you observe it without `sessions read` polling.
 
 Include relevant context in the prompt — file paths, constraints, what has already been tried. A good delegation prompt is self-contained.
 
