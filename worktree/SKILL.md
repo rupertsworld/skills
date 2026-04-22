@@ -49,6 +49,18 @@ After creating or attaching:
 
 If the user is on a constrained machine and objects to the full install, ask — but make the tradeoff explicit: shared `node_modules/` will give wrong results for any cross-branch divergence in workspace packages.
 
+## Flat-dir symlink
+
+If the user keeps a flat index of active worktrees at `~/Repos/worktrees/` (the directory exists), add a symlink there pointing at the new worktree:
+
+```bash
+ln -s <worktree-absolute-path> ~/Repos/worktrees/<name>
+```
+
+This gives one place to see every active worktree across all repos without navigating into each repo's `.worktrees/`. If `~/Repos/worktrees/` doesn't exist, skip silently — it's a user convention, not required for the worktree to work.
+
+If `~/Repos/worktrees/<name>` already exists, let the error surface rather than clobbering — the user may have a separate worktree of the same name from another repo.
+
 ## Naming
 
 - If the user gives a name, use it verbatim.
