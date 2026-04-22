@@ -24,8 +24,9 @@ The session's sandbox is scoped to the current repo. Putting worktrees under `<r
    - **Exists → attach:** `git worktree add .worktrees/<name> <name>`
    - **New → create:** `git worktree add -b <name> .worktrees/<name>` from the confirmed base
 4. **Install dependencies** — see below. Skip only if the repo has no package manager.
-5. **Report the absolute path** of the new worktree. One line, no ceremony.
-6. **Announce the session handoff** (see below).
+5. **Add a flat-dir symlink** — see below. Skip silently if the user doesn't use the convention.
+6. **Report the absolute path** of the new worktree. One line, no ceremony.
+7. **Announce the session handoff** (see below).
 
 Let git errors surface as-is — if the branch is already checked out in another worktree, if the target path exists, if the tree is dirty, the git error is clearer than anything this skill could synthesise.
 
