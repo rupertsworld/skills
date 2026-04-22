@@ -83,7 +83,8 @@ When announcing the new worktree, tell the user plainly: "Using `<absolute path>
 `/worktree rm <name>`:
 
 1. `git worktree remove .worktrees/<name>` — this fails cleanly if the worktree has uncommitted work. Don't `--force` without explicit user confirmation.
-2. If the branch `<name>` still exists and is fully merged into `main` (`git branch --merged main`), ask the user whether to delete it. Never delete unmerged branches without explicit confirmation.
+2. If `~/Repos/worktrees/<name>` is a symlink (from the flat-dir convention), remove it: `rm ~/Repos/worktrees/<name>` (removes the symlink only, not the target). Only touch it if it's a symlink — never a real directory.
+3. If the branch `<name>` still exists and is fully merged into `main` (`git branch --merged main`), ask the user whether to delete it. Never delete unmerged branches without explicit confirmation.
 
 ## List
 
