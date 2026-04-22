@@ -11,15 +11,22 @@ Delegate a task to a background coding agent (default: Codex) using acpx session
 - **Background work**: Offload a long-running task (refactoring, test writing, migration) while continuing other work
 - **Parallel exploration**: Try an alternative approach without interrupting the current session
 
-## Three modes: short, long-unattended, long-steered
+## Two modes: short, long-steered
 
 Pick a mode before delegating — they have different command shapes and follow-up behavior.
 
 - **Short (foreground)**: quick second opinions, one-shot questions, small reviews. Omit `--no-wait` so the result comes back in the same turn. Return the answer to the user and move on.
-- **Long unattended (background task)**: "just go do this, ping me when done." Run acpx synchronously (no `--no-wait`) but wrap it in `Bash` with `run_in_background: true`. The whole turn runs inside a Claude Code background task — output streams through `TaskOutput`, and a `<task-notification>` fires automatically when the acpx turn ends. No polling. Best for fire-and-forget work where you don't need to steer mid-turn.
-- **Long steered (`--no-wait` + `/loop`)**: iterative work where you want to read progress and send follow-ups. Use `--no-wait` so the session detaches, then invoke `/loop` to poll, steer, or cancel. Best when the user explicitly wants tight steering.
+- **Long steered (`--no-wait` + `/loop`)**: default for any real work. Use `--no-wait` so the session detaches, then invoke `/loop` to poll, steer, or cancel. You can `acpx prompt -s <session> --no-wait "..."` mid-flight to interject without killing the session. You can `acpx cancel -s <session>` cooperatively if the work is going sideways.
 
-If unsure which of the two long modes fits, ask. Defaults: "make a PR / write the tests / refactor X" → **long unattended** is usually right. "Explore / investigate / iterate on this" → **long steered**.
+**Long-unattended is deprecated** (wrap foreground acpx in Claude's `Bash run_in_background` and wait for `<task-notification>`). It sacrifices two things you almost always want:
+- **Live observation** — the persisted `.output` file only captures `[acpx]` setup lines + the final turn message. No tool events, no partial agent text.
+- **Interjection** — to steer, you'd have to kill the Claude bg task (which kills the acpx process), losing the session and its context.
+
+The only niche where long-unattended remains defensible: genuinely mechanical, time-bounded work where no steering could possibly help (e.g., "install this dep and run tests once"). For anything with ambiguity in the spec, where the agent might wedge on a decision, or where you'd want to redirect partway through — use long-steered.
+
+### `--format json` for live stream
+
+acpx's default text output emits sparse events (session-create + final turn text). Pass `--format json` for a structured event stream (tool calls, agent text deltas) to stdout — which you can `tail -f` in real time. Worth defaulting to `--format json` when running long-steered so polling `sessions read` isn't the only observability.
 
 ## Important: sandbox
 
