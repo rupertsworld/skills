@@ -45,7 +45,18 @@ After creating or attaching:
    - `uv.lock` / `poetry.lock` / `requirements.txt` → set up a worktree-local venv (`uv sync`, `poetry install`, etc.)
    - `Cargo.lock` → nothing needed; `target/` is already per-checkout
    - No recognised manifest → skip.
-3. Let the install command's errors surface. Don't paper over them.
+3. Let the install command's errors surface. Don't paper over them — with one exception below.
+
+### Sandbox vs. package-manager caches
+
+Package managers write to shared caches outside the repo — `~/.npm/_cacache/` for npm, `~/.bun/install/cache/` for bun, `~/Library/Caches/pnpm/` for pnpm, etc. The session sandbox usually does **not** allow writes there (it allowlists the repo and `$TMPDIR`, not arbitrary home-dir caches). When the cache path is outside the allowlist, the install fails with `EPERM` — and the error message often misattributes the cause (npm blames "root-owned files").
+
+If `npm ci`/`npm install` fails with `EPERM` on a path under `~/.npm/_cacache/`, **don't trust the error message**. It's almost certainly the sandbox. Two fixes, in order of preference:
+
+1. **Scratch cache in `$TMPDIR`** (preferred — keeps sandbox on): `npm ci --cache="$TMPDIR/npm-cache-<name>"`. Equivalent flags exist for other managers (`bun install --cache-dir`, `pnpm install --store-dir`, etc.).
+2. **Retry with `dangerouslyDisableSandbox: true`** if the scratch-cache approach doesn't apply.
+
+Don't ask the user to `sudo chown` their npm cache — that's treating the symptom of a misdiagnosis.
 
 If the user is on a constrained machine and objects to the full install, ask — but make the tradeoff explicit: shared `node_modules/` will give wrong results for any cross-branch divergence in workspace packages.
 
