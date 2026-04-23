@@ -99,9 +99,10 @@ When announcing the new worktree, tell the user plainly: "Using `<absolute path>
 
 `/worktree rm <name>`:
 
-1. Find the worktree path via `git worktree list` (accepting either `<repo>@<name>` in the flat dir or `<name>` under `.worktrees/`).
-2. `git worktree remove <path>` — this fails cleanly if the worktree has uncommitted work. Don't `--force` without explicit user confirmation.
-3. If the branch `<name>` still exists and is fully merged into `main` (`git branch --merged main`), ask the user whether to delete it. Never delete unmerged branches without explicit confirmation.
+1. Derive `<slug>` from the input the same way as create (strip any prefix before the last `/`).
+2. Find the worktree path via `git worktree list` (accepting either `<repo>@<slug>` in the flat dir or `<slug>` under `.worktrees/`).
+3. `git worktree remove <path>` — this fails cleanly if the worktree has uncommitted work. Don't `--force` without explicit user confirmation.
+4. If the branch the worktree was on still exists and is fully merged into `main` (`git branch --merged main`), ask the user whether to delete it. Never delete unmerged branches without explicit confirmation.
 
 ## List
 
