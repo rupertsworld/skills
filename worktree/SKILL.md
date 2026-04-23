@@ -1,23 +1,34 @@
 ---
 name: worktree
-description: Create or manage git worktrees at `~/Repos/worktrees/<repo>@<name>/` (or `<repo>/.worktrees/<name>/` as fallback). `/worktree <name>` creates or attaches; `/worktree rm <name>` removes; `/worktree list` lists.
+description: Create or manage git worktrees at `~/Repos/worktrees/<repo>@<slug>/` (or `<repo>/.worktrees/<slug>/` as fallback). `/worktree <name>` creates or attaches; `/worktree rm <name>` removes; `/worktree list` lists.
 ---
 
 Create and manage git worktrees so the current Claude session can switch to isolated branches without losing its sandbox or needing a new session.
 
+## Names and slugs
+
+Two distinct values are at play — don't conflate them:
+
+- **`<branch>`** — the full git branch name, possibly with a convention prefix (`feat/home-screen`, `fix/login-bug`).
+- **`<slug>`** — the branch name's final path segment, lowercase and hyphenated (`home-screen`, `login-bug`). This is what names the worktree directory.
+
+When the caller passes a name containing a slash (e.g. `feat/home-screen`), treat the whole thing as `<branch>` and take everything after the last `/` as `<slug>`. When the name has no slash, `<branch>` and `<slug>` are the same string.
+
+**The directory is always `<repo>@<slug>` — never embed the `feat/`, `fix/`, or other prefix in the directory path.** A slash in the directory name creates an unintended nested subdirectory (e.g. `television@feat/home-screen/` lives two levels deep) which breaks later lookups, removal, and most shells' autocomplete.
+
 ## Where worktrees live
 
-Default: `~/Repos/worktrees/<repo>@<name>/` — a flat directory of all active worktrees across every repo on the machine, named `<repo>@<name>` so worktrees from different repos don't collide. This location is inside the session's sandbox write allowlist (`~/Repos`) and is easy to surface at the top level of the user's IDE file tree.
+Default: `~/Repos/worktrees/<repo>@<slug>/` — a flat directory of all active worktrees across every repo on the machine, named `<repo>@<slug>` so worktrees from different repos don't collide. This location is inside the session's sandbox write allowlist (`~/Repos`) and is easy to surface at the top level of the user's IDE file tree.
 
-Fallback: `<repo>/.worktrees/<name>/` — used only if `~/Repos/worktrees/` does not exist. The worktree is gitignored in the main checkout.
+Fallback: `<repo>/.worktrees/<slug>/` — used only if `~/Repos/worktrees/` does not exist. The worktree is gitignored in the main checkout.
 
-`<repo>` is the main checkout's directory basename (e.g. `television`, not `Television` or a remote slug). `<name>` is the worktree name argument.
+`<repo>` is the main checkout's directory basename (e.g. `television`, not `Television` or a remote slug).
 
 ## Invocation
 
-- `/worktree <name>` — create a new worktree named `<name>`; if a branch named `<name>` already exists, attach to it instead
+- `/worktree <name>` — create a new worktree for branch `<name>` (the directory uses the slug portion); if the branch already exists, attach to it instead
 - `/worktree` (no args) — invent a name based on the current task/conversation and existing branch conventions, then create
-- `/worktree rm <name>` — remove a worktree (and optionally its branch, if safe)
+- `/worktree rm <name>` — remove a worktree (and optionally its branch, if safe). Accepts either the branch name or the bare slug
 - `/worktree list` — show existing worktrees
 
 ## Create or attach
