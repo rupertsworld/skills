@@ -38,7 +38,13 @@ Produce a short conventional branch name of the form `<prefix>/<slug>`.
 - Invoke the `worktree` skill with the derived name (e.g. `feat/do-this-thing`). This creates `.worktrees/<name>/` on a branch of the same name, or attaches if the branch already exists.
 - Treat the worktree as the active working location for the rest of the session — read docs, run the planning dialogue, and write the plan there.
 
-### 4. Read the project's must-read docs
+### 4. Mark the issue "In Progress"
+
+- Update the Linear issue's status to "In Progress" via `mcp__linear__save_issue`, passing the issue's `team` and a `state` of `"In Progress"` (the MCP accepts the state name directly for the issue's team).
+- If the issue is already "In Progress" or further along (e.g. "In Review", "Done"), skip this step rather than regressing it.
+- If the update fails, tell the user and continue — don't block the planning flow on a status change.
+
+### 5. Read the project's must-read docs
 
 - Look for `AGENTS.md` and `CLAUDE.md` in the repo root. These route to the docs that must be read before making changes.
 - Follow the links in those files — architecture, guidelines, and any area-specific docs that match the issue's topic.
