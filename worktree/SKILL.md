@@ -79,9 +79,9 @@ If the user is on a constrained machine and objects to the full install, ask —
 
 ## Naming
 
-- If the user gives a name, use it verbatim (as `<name>` in `<repo>@<name>`).
-- If not, invent a short lowercase hyphenated name based on the task at hand and the conventions of existing branches (`git branch --list` — look for prefixes like `feat/`, `fix/`, etc., and match them). No generic prefix.
-- The branch name usually matches `<name>` or follows the repo's branch prefix convention (`feat/<name>`, `fix/<name>`, etc.). The directory name is always just `<repo>@<name>` — don't embed the branch prefix in the directory.
+- If the user gives a name, use it verbatim as the branch name. Derive the slug from it (see "Names and slugs" above) — the slug is what names the directory.
+- If not, invent a short lowercase hyphenated name based on the task at hand and the conventions of existing branches (`git branch --list` — look for prefixes like `feat/`, `fix/`, etc., and match them).
+- The branch name usually carries the repo's branch prefix convention (`feat/<slug>`, `fix/<slug>`). The directory name is always `<repo>@<slug>` with no prefix.
 
 ## Session handoff — routing work to the worktree
 
