@@ -33,16 +33,17 @@ Fallback: `<repo>/.worktrees/<slug>/` — used only if `~/Repos/worktrees/` does
 
 ## Create or attach
 
-1. **Pick the worktree path.**
-   - If `~/Repos/worktrees/` exists: use `~/Repos/worktrees/<repo>@<name>`.
-   - Else: use `<repo>/.worktrees/<name>`, and ensure `.worktrees/` is in the repo's root `.gitignore` (add it if not, without committing).
-2. **Check the base branch.** Run `git rev-parse --abbrev-ref HEAD`. If it isn't `main`, ask the user whether to branch from the current HEAD or switch to `main` first. Don't assume.
-3. **Dispatch on whether the branch exists.** `git show-ref --verify --quiet refs/heads/<name>`:
-   - **Exists → attach:** `git worktree add <path> <name>`
-   - **New → create:** `git worktree add -b <name> <path>` from the confirmed base
-4. **Install dependencies** — see below. Skip only if the repo has no package manager.
-5. **Report the absolute path** of the new worktree. One line, no ceremony.
-6. **Announce the session handoff** (see below).
+1. **Split the name into `<branch>` and `<slug>`.** If the input contains `/`, `<branch>` is the whole input and `<slug>` is the segment after the last `/`. Otherwise `<branch>` and `<slug>` are both the input.
+2. **Pick the worktree path.**
+   - If `~/Repos/worktrees/` exists: use `~/Repos/worktrees/<repo>@<slug>`.
+   - Else: use `<repo>/.worktrees/<slug>`, and ensure `.worktrees/` is in the repo's root `.gitignore` (add it if not, without committing).
+3. **Check the base branch.** Run `git rev-parse --abbrev-ref HEAD`. If it isn't `main`, ask the user whether to branch from the current HEAD or switch to `main` first. Don't assume.
+4. **Dispatch on whether the branch exists.** `git show-ref --verify --quiet refs/heads/<branch>`:
+   - **Exists → attach:** `git worktree add <path> <branch>`
+   - **New → create:** `git worktree add -b <branch> <path>` from the confirmed base
+5. **Install dependencies** — see below. Skip only if the repo has no package manager.
+6. **Report the absolute path** of the new worktree. One line, no ceremony.
+7. **Announce the session handoff** (see below).
 
 Let git errors surface as-is — if the branch is already checked out in another worktree, if the target path exists, if the tree is dirty, the git error is clearer than anything this skill could synthesise.
 
